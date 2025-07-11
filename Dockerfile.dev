@@ -1,0 +1,22 @@
+FROM golang:1.24.1-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install air, make, and necessary tools
+RUN apk add --no-cache make gcc musl-dev
+
+# Install air
+RUN go install github.com/air-verse/air@latest
+
+# Install golang-migrate
+RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+COPY go.mod go.sum ./
+
+RUN go mod download && go mod verify
+
+# COPY . .
+
+# Run air
+CMD ["air", "-c", ".air.toml"]
