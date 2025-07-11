@@ -6,9 +6,13 @@ import (
 
 type User struct {
 	ID              int64        `json:"id"`
+	FirstName       string       `json:"first_name"`
+	LastName        string       `json:"last_name"`
 	Username        string       `json:"username"`
 	Email           string       `json:"email"`
 	NormalizedEmail string       `json:"normalized_email"`
+	OtpCode         string       `json:"otp_code"`
+	OtpExp          string       `json:"otp_expires_at"`
 	Password        PasswordHash `json:"-"`
 	CreatedAt       string       `json:"created_at"`
 	UpdatedAt       string       `json:"updated_at"`

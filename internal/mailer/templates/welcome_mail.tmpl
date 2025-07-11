@@ -1,153 +1,100 @@
-{{define "subject"}} Testing CRON Job {{end}}
+{{define "subject"}} Finish your registration {{end}}
 
 {{define "body"}}
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Welcome to [Your Company]!</title>
-    <style type="text/css">
-        /* Client-specific styles */
-        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-        
-        /* Reset styles */
-        body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
-        
-        /* iOS BLUE LINKS */
-        a[x-apple-data-detectors] {
-            color: inherit !important;
-            text-decoration: none !important;
-            font-size: inherit !important;
-            font-family: inherit !important;
-            font-weight: inherit !important;
-            line-height: inherit !important;
-        }
-        
-        /* Main styles */
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Verification</title>
+    <style>
         body {
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
             color: #333333;
-            background-color: #f4f4f4;
-        }
-        
-        .container {
-            width: 100%;
             max-width: 600px;
             margin: 0 auto;
+            padding: 20px;
         }
-        
         .header {
-            padding: 20px;
             text-align: center;
-            background-color: #ffffff;
+            padding: 20px 0;
         }
-        
         .logo {
-            max-width: 200px;
-            height: auto;
+            max-width: 150px;
         }
-        
         .content {
-            padding: 30px;
-            background-color: #ffffff;
-            line-height: 1.6;
+            background-color: #f9f9f9;
+            padding: 25px;
+            border-radius: 5px;
+            margin: 20px 0;
         }
-        
-        .footer {
-            padding: 20px;
+        .otp-code {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 3px;
             text-align: center;
-            font-size: 12px;
-            color: #999999;
-            background-color: #f4f4f4;
+            padding: 15px;
+            background-color: #e9f5ff;
+            border-radius: 5px;
+            margin: 20px 0;
+            color: #0066cc;
         }
-        
         .button {
             display: inline-block;
-            padding: 12px 24px;
-            background-color: #0078d4;
-            color: #ffffff !important;
+            padding: 12px 25px;
+            background-color: #0066cc;
+            color: white !important;
             text-decoration: none;
-            border-radius: 4px;
+            border-radius: 5px;
             font-weight: bold;
             margin: 15px 0;
         }
-        
-        @media screen and (max-width: 600px) {
-            .container {
-                width: 100% !important;
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #999999;
+            margin-top: 30px;
+        }
+        @media only screen and (max-width: 600px) {
+            body {
+                padding: 10px;
             }
             .content {
-                padding: 20px !important;
+                padding: 15px;
             }
         }
     </style>
 </head>
-<body style="margin: 0; padding: 0;">
-    <!--[if mso]>
-    <style type="text/css">
-        .button { font-family: Arial, sans-serif !important; }
-    </style>
-    <![endif]-->
-    
-    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-        <tr>
-            <td align="center" valign="top">
-                <table class="container" border="0" cellpadding="0" cellspacing="0" width="600">
-                    <!-- Header -->
-                    <tr>
-                        <td class="header">
-                            <img src="https://example.com/logo.png" alt="[Your Company Logo]" class="logo" />
-                        </td>
-                    </tr>
-                    
-                    <!-- Content -->
-                    <tr>
-                        <td class="content">
-                            <h1 style="margin-top: 0;">Welcome to [Your Company]!</h1>
-                            
-                            <p>Dear [First Name],</p>
-                            
-                            <p>We're thrilled to have you on board! Thank you for joining [Your Company]. You've taken the first step toward [benefit of joining].</p>
-                            
-                            <p>Here's what you can expect from us:</p>
-                            <ul>
-                                <li>Regular updates on [products/services]</li>
-                                <li>Exclusive offers just for members</li>
-                                <li>Helpful tips and resources</li>
-                            </ul>
-                            
-                            <p>To get started, check out our most popular resources:</p>
-                            
-                            <p align="center">
-                                <a href="https://example.com/get-started" class="button">Get Started</a>
-                            </p>
-                            
-                            <p>If you have any questions, simply reply to this email or contact us at <a href="mailto:support@example.com">support@example.com</a>.</p>
-                            
-                            <p>Welcome aboard!</p>
-                            
-                            <p>Best regards,<br />The [Your Company] Team</p>
-                        </td>
-                    </tr>
-                    
-                    <!-- Footer -->
-                    <tr>
-                        <td class="footer">
-                            <p>&copy; [Current Year] [Your Company]. All rights reserved.</p>
-                            <p>
-                                [Your Company Address]<br />
-                                <a href="https://example.com">Website</a> | 
-                                <a href="https://example.com/unsubscribe">Unsubscribe</a>
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+<body>
+    <div class="header">
+        <!-- Replace with your logo -->
+        <img src="https://yourwebsite.com/logo.png" alt="Company Logo" class="logo">
+    </div>
+
+    <div class="content">
+        <h2>Welcome to [Your Company Name]!</h2>
+        <p>Thank you for creating an account with us. To complete your registration, please verify your email address using the OTP (One-Time Password) code below:</p>
+
+        <div class="otp-code">
+            {{.OtpCode}}
+        </div>
+
+        <p>This code will expire in 5 minutes. Please do not share this code with anyone.</p>
+
+        <p>If you didn't create an account with us, please ignore this email or contact support.</p>
+
+        <p>Best regards,<br>The [Your Company Name] Team</p>
+    </div>
+
+    <div class="footer">
+        <p>&copy; [Current Year] [Your Company Name]. All rights reserved.</p>
+        <p>
+            [Your Company Address]<br>
+            <a href="https://yourwebsite.com">yourwebsite.com</a> |
+            <a href="mailto:support@yourwebsite.com">Contact Support</a>
+        </p>
+    </div>
 </body>
 </html>
 {{end}}

@@ -1,15 +1,13 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"errors"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 
 	"godsendjoseph.dev/sandbox-api/internal/mailer"
 	"godsendjoseph.dev/sandbox-api/internal/models"
@@ -24,7 +22,7 @@ type RegisterUserPayload struct {
 	Password  string `json:"password" validate:"required,min=8,max=100"`
 }
 
-type CreateUserTokenPayload struct {
+type LoginUserPayload struct {
 	Email    string `json:"email" validate:"required,email,max=255"`
 	Password string `json:"password" validate:"required,min=8,max=100"`
 }
@@ -33,19 +31,30 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 	var payload RegisterUserPayload
 
 	if err := readJSON(writer, request, &payload); err != nil {
-		app.badRequestResponse(writer, request, err, nil)
+		app.badRequestResponse(writer, request, err)
 		return
 	}
 
-	if err := Validate.Struct(payload); err != nil {
-		msg, errorsMap := formatValidationErrors(err)
-		app.badRequestResponse(writer, request, errors.New(msg), errorsMap)
+	isPayloadValid := validatePayload(writer, payload)
+	if !isPayloadValid {
 		return
 	}
+
+	otpCode, err := generateOTP()
+	if err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
+
+	otpCodeExpiring := time.Now().Add(5 * time.Minute)
 
 	user := &models.User{
-		Username: payload.Username,
-		Email:    payload.Email,
+		FirstName: payload.FirstName,
+		LastName:  payload.LastName,
+		Username:  payload.Username,
+		Email:     payload.Email,
+		OtpCode:   otpCode,
+		OtpExp:    otpCodeExpiring.String(),
 		Role: models.Role{
 			Name: "user",
 		},
@@ -58,40 +67,30 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 	}
 
 	ctx := request.Context()
-
-	plainToken := uuid.New().String() // using Google UUID package
-
-	hash := sha256.Sum256([]byte(plainToken))
-	hashToken := hex.EncodeToString(hash[:])
-
 	// store the user
-	err := app.store.Users.CreateAndInvite(ctx, user, hashToken, app.config.mail.exp)
+	err = app.store.Users.CreateUserTx(ctx, user)
 	if err != nil {
 		switch err {
 		case store.ErrDuplicateEmail:
-			app.badRequestResponse(writer, request, err, nil)
+			app.badRequestResponse(writer, request, err)
 		case store.ErrDuplicateUsername:
-			app.badRequestResponse(writer, request, err, nil)
+			app.badRequestResponse(writer, request, err)
 		default:
 			app.internalServerError(writer, request, err)
 		}
 		return
 	}
 
-	var data = map[string]any{
-		"user":        user,
-		"plain_token": plainToken,
-	}
-
 	isProdEnv := app.config.env == "production"
-	activationURL := fmt.Sprintf("%s/confirm/%s", app.config.frontendURL, plainToken)
 
 	vars := struct {
-		Username      string
-		ActivationURL string
+		Username string
+		OtpCode  string
+		OTPExp   string
 	}{
-		Username:      user.Username,
-		ActivationURL: activationURL,
+		Username: user.Username,
+		OtpCode:  otpCode,
+		OTPExp:   otpCodeExpiring.String(),
 	}
 
 	// send the user an email
@@ -107,7 +106,6 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 
 	if err != nil {
 		app.logger.Errorw("error sending welcome email", "error", err)
-
 		// rollback user creation if email fails (SAGA Pattern)
 		if err := app.store.Users.Delete(ctx, user.ID); err != nil {
 			app.logger.Errorw("error deleting user", "error", err)
@@ -115,25 +113,35 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 		app.internalServerError(writer, request, err)
 		return
 	}
+	// generate the token -> add claims -> sign the token
+	token, err := app.generateJWTToken(user)
+	if err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
+
+	var data = map[string]any{
+		"user":  user,
+		"token": token,
+	}
 
 	if err := writeJSON(writer, http.StatusOK, "User created", data); err != nil {
 		app.internalServerError(writer, request, err)
 		return
 	}
-
 }
 
 func (app *application) loginUserHandler(writer http.ResponseWriter, request *http.Request) {
 	// parse the json payload
-	var payload CreateUserTokenPayload
+	var payload LoginUserPayload
 
 	if err := readJSON(writer, request, &payload); err != nil {
-		app.badRequestResponse(writer, request, err, nil)
+		app.badRequestResponse(writer, request, err)
 		return
 	}
 
-	if err := Validate.Struct(payload); err != nil {
-		app.badRequestResponse(writer, request, err, nil)
+	isPayloadValid := validatePayload(writer, payload)
+	if !isPayloadValid {
 		return
 	}
 
@@ -157,15 +165,7 @@ func (app *application) loginUserHandler(writer http.ResponseWriter, request *ht
 	}
 
 	// generate the token -> add claims -> sign the token
-	claims := jwt.MapClaims{
-		"sub": user.ID,
-		"exp": time.Now().Add(app.config.auth.token.exp).Unix(),
-		"iat": time.Now().Unix(),
-		"nbf": time.Now().Unix(),
-		"iss": app.config.auth.token.issuer,
-		"aud": app.config.auth.token.audience,
-	}
-	token, err := app.authenticator.GenerateToken(claims)
+	token, err := app.generateJWTToken(user)
 	if err != nil {
 		app.internalServerError(writer, request, err)
 		return
@@ -195,3 +195,34 @@ func (app *application) veriftOtpHandler(writer http.ResponseWriter, request *ht
 }
 
 // ==================== Private Methods ===================== //
+func generateOTP() (string, error) {
+	const digits = 6
+	max := big.NewInt(1000000) // 10^6 = 1,000,000
+
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return "", err
+	}
+
+	// Format with leading zeros (e.g., 000123)
+	otp := fmt.Sprintf("%06d", n.Int64())
+	return otp, nil
+}
+
+func (app *application) generateJWTToken(user *models.User) (string, error) {
+	claims := jwt.MapClaims{
+		"sub": user.ID,
+		"exp": time.Now().Add(app.config.auth.token.exp).Unix(),
+		"iat": time.Now().Unix(),
+		"nbf": time.Now().Unix(),
+		"iss": app.config.auth.token.issuer,
+		"aud": app.config.auth.token.audience,
+	}
+	token, err := app.authenticator.GenerateToken(claims)
+
+	if err != nil {
+		app.logger.Errorw("error generating JWT token", "error", err)
+		return "", err
+	}
+	return token, nil
+}

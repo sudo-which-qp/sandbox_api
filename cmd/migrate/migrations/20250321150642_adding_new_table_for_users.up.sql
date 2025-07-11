@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL,
     normalized_email VARCHAR(255) NULL,
     password VARCHAR(255) NOT NULL,
+    otp_code VARCHAR(255) NULL,
+    otp_expires_at VARCHAR(255) NULL,
     is_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

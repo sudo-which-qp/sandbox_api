@@ -10,9 +10,9 @@ func (app *application) internalServerError(writer http.ResponseWriter, request 
 	writeJSONError(writer, http.StatusInternalServerError, "the server encountered a problem and could not process your request", nil)
 }
 
-func (app *application) badRequestResponse(writer http.ResponseWriter, request *http.Request, err error, errorsMap map[string]string) {
-	app.logger.Errorw("bad request error", "method", request.Method, "path", request.URL.Path, "error", err.Error(), "errors", errorsMap)
-	writeJSONError(writer, http.StatusBadRequest, err.Error(), errorsMap)
+func (app *application) badRequestResponse(writer http.ResponseWriter, request *http.Request, err error) {
+	app.logger.Errorw("bad request error", "method", request.Method, "path", request.URL.Path, "error", err.Error())
+	writeJSONError(writer, http.StatusBadRequest, err.Error(), nil)
 }
 func (app *application) methodNotAllowedResponse(writer http.ResponseWriter, request *http.Request, err error) {
 	app.logger.Errorf("method not allowed error", "method", request.Method, "path", request.URL.Path, "error", err.Error())

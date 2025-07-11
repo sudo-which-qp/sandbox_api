@@ -47,7 +47,7 @@ func (app *application) uploadFile(writer http.ResponseWriter, request *http.Req
 	fileExt = strings.ToLower(filepath.Ext(fileHeader.Filename))
 
 	if !allowedExtensions[fileExt] {
-		app.badRequestResponse(writer, request, errors.New("invalid file extension"), nil)
+		app.badRequestResponse(writer, request, errors.New("invalid file extension"))
 		return errors.New("invalid file extension"), "", ""
 	}
 

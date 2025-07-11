@@ -29,7 +29,7 @@ func (app *application) getUserByIDHandler(writer http.ResponseWriter, request *
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
 	if err != nil {
-		app.badRequestResponse(writer, request, err, nil)
+		app.badRequestResponse(writer, request, err)
 		return
 	}
 
@@ -53,27 +53,6 @@ func (app *application) getUserByIDHandler(writer http.ResponseWriter, request *
 	}
 }
 
-func (app *application) activateUserHandler(writer http.ResponseWriter, request *http.Request) {
-	token := chi.URLParam(request, "token")
-
-	ctx := request.Context()
-
-	if err := app.store.Users.ActivateUser(ctx, token); err != nil {
-		switch {
-		case errors.Is(err, store.ErrNotFound):
-			app.notFoundResponse(writer, request, err)
-		default:
-			app.internalServerError(writer, request, err)
-		}
-		return
-	}
-
-	if err := writeJSON(writer, http.StatusOK, "user activated", nil); err != nil {
-		app.internalServerError(writer, request, err)
-		return
-	}
-}
-
 func (app *application) usersContextMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		idParam := chi.URLParam(request, "userID")
@@ -81,7 +60,7 @@ func (app *application) usersContextMiddleware(next http.Handler) http.Handler {
 		id, err := strconv.ParseInt(idParam, 10, 64)
 
 		if err != nil {
-			app.badRequestResponse(writer, request, err, nil)
+			app.badRequestResponse(writer, request, err)
 			return
 		}
 

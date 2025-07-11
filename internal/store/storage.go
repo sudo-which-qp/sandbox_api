@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"godsendjoseph.dev/sandbox-api/internal/models"
@@ -22,8 +23,7 @@ type Storage struct {
 	Users interface {
 		Create(context.Context, *sql.Tx, *models.User) error
 		GetByID(context.Context, int64) (*models.User, error)
-		CreateAndInvite(ctx context.Context, user *models.User, token string, invitationExp time.Duration) error
-		ActivateUser(context.Context, string) error
+		CreateUserTx(context.Context, *models.User) error
 		Delete(context.Context, int64) error
 		ExistsByEmail(context.Context, string) (bool, error)
 		GetByEmail(context.Context, string) (*models.User, error)
@@ -54,4 +54,21 @@ func withTx(ctx context.Context, db *sql.DB, fn func(tx *sql.Tx) error) error {
 	}
 
 	return tx.Commit()
+}
+
+func normalizeEmail(email string) string {
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return email // Not a valid email format
+	}
+
+	username := parts[0]
+	domain := parts[1]
+
+	// Remove everything after the first "+" in the username part
+	if plusIndex := strings.Index(username, "+"); plusIndex != -1 {
+		username = username[:plusIndex]
+	}
+
+	return strings.ToLower(username + "@" + domain)
 }

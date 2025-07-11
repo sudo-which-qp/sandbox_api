@@ -107,6 +107,15 @@ func writeJSONError(writer http.ResponseWriter, status int, message string, erro
 	return json.NewEncoder(writer).Encode(response)
 }
 
+func validatePayload(writer http.ResponseWriter, payload any) bool {
+	if err := Validate.Struct(payload); err != nil {
+		msg, errorsMap := formatValidationErrors(err)
+		writeJSONError(writer, http.StatusBadRequest, msg, errorsMap)
+		return false
+	}
+	return true
+}
+
 func formatValidationErrors(err error) (string, map[string]string) {
 	errorsMap := make(map[string]string)
 	var firstError string
