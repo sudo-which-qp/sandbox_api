@@ -29,7 +29,7 @@ func (app *application) getUserByIDHandler(writer http.ResponseWriter, request *
 	id, err := strconv.ParseInt(idParam, 10, 64)
 
 	if err != nil {
-		app.badRequestResponse(writer, request, err)
+		app.badRequestResponse(writer, request, err, nil)
 		return
 	}
 
@@ -81,7 +81,7 @@ func (app *application) usersContextMiddleware(next http.Handler) http.Handler {
 		id, err := strconv.ParseInt(idParam, 10, 64)
 
 		if err != nil {
-			app.badRequestResponse(writer, request, err)
+			app.badRequestResponse(writer, request, err, nil)
 			return
 		}
 

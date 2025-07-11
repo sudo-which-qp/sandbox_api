@@ -16,13 +16,19 @@ func (app *application) registerRoutes(router *chi.Mux) {
 
 		// users
 		route.Route("/users", func(route chi.Router) {
-			route.With(app.AuthTokenMiddleware).Get("/profile", app.getUserHandler)
+			route.Use(app.AuthTokenMiddleware)
+			route.Get("/profile", app.getUserHandler)
+			route.Get("/profile", app.getUserHandler)
 		})
 
 		// Public routes
 		route.Route("/auth", func(route chi.Router) {
 			route.Post("/register", app.registerUserHandler)
 			route.Post("/login", app.loginUserHandler)
+			route.Post("/verify-email", app.verifyEmailHandler)
+			route.Post("/forgot-password", app.forgotPasswordHandler)
+			route.Post("/reset-password", app.resetPasswordHandler)
+			route.Post("/verify-otp", app.veriftOtpHandler)
 		})
 	})
 }

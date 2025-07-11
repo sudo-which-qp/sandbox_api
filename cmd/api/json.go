@@ -21,25 +21,14 @@ func writeJSON(writer http.ResponseWriter, status int, message string, data any)
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
 
-	var jR map[string]any
-
-	if status < 399 {
-		jR = map[string]any{
-			"status":  status,
-			"success": true,
-			"message": message,
-			"data":    data,
-		}
-	} else {
-		jR = map[string]any{
-			"status":  status,
-			"success": false,
-			"message": message,
-			"data":    data,
-		}
+	response := map[string]any{
+		"status":  status,
+		"success": status < 400,
+		"message": message,
+		"data":    data,
 	}
 
-	return json.NewEncoder(writer).Encode(jR)
+	return json.NewEncoder(writer).Encode(response)
 }
 
 func readFormData(writer http.ResponseWriter, request *http.Request, data any) (map[string][]*multipart.FileHeader, error) {
@@ -101,9 +90,60 @@ func readJSON(writer http.ResponseWriter, request *http.Request, data any) error
 	return decoder.Decode(data)
 }
 
-func writeJSONError(writer http.ResponseWriter, status int, message string) error {
-	// type envelope struct {
-	// 	Error string `json:"error"`
-	// }
-	return writeJSON(writer, status, message, nil)
+func writeJSONError(writer http.ResponseWriter, status int, message string, errorsMap map[string]string) error {
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(status)
+
+	response := map[string]any{
+		"status":  status,
+		"success": false,
+		"message": message,
+		"data":    nil,
+	}
+
+	if errorsMap != nil {
+		response["errors"] = errorsMap
+	}
+	return json.NewEncoder(writer).Encode(response)
+}
+
+func formatValidationErrors(err error) (string, map[string]string) {
+	errorsMap := make(map[string]string)
+	var firstError string
+
+	var ve validator.ValidationErrors
+	if errors.As(err, &ve) {
+		for _, fieldErr := range ve {
+			field := fieldErr.Field()
+
+			// Create a more user-friendly error message
+			var msg string
+			switch fieldErr.Tag() {
+			case "required":
+				msg = field + " is required"
+			case "email":
+				msg = field + " must be a valid email address"
+			case "min":
+				msg = field + " must be at least " + fieldErr.Param() + " characters long"
+			case "max":
+				msg = field + " must be at most " + fieldErr.Param() + " characters long"
+			default:
+				msg = field + " is " + fieldErr.Tag()
+			}
+
+			errorsMap[field] = msg
+
+			// Store the first error if we haven't set it yet
+			if firstError == "" {
+				firstError = msg
+			}
+		}
+	}
+
+	// Return the first error message and the complete errors map
+	if firstError != "" {
+		return firstError, errorsMap
+	}
+
+	return "Invalid input", errorsMap
 }

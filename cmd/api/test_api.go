@@ -24,7 +24,7 @@ func (app *application) sendBulkEmails(writer http.ResponseWriter, request *http
 		)
 		if err != nil {
 			app.logger.Errorw("error sending welcome email", "error", err)
-			app.badRequestResponse(writer, request, err)
+			app.badRequestResponse(writer, request, err, nil)
 			return
 		}
 	}

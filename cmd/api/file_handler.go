@@ -37,7 +37,7 @@ func (app *application) deleteFile(ctx context.Context, fileKey string) error {
 	return nil
 }
 
-func (app *application) uploadFile(writer http.ResponseWriter, request *http.Request, fileHeaders []*multipart.FileHeader) (error, string, string) {
+func (app *application) uploadFile(writer http.ResponseWriter, request *http.Request, fileHeaders []*multipart.FileHeader, allowedExtensions map[string]bool) (error, string, string) {
 	fileHeader := fileHeaders[0]
 
 	// Get the original file extension
@@ -46,15 +46,8 @@ func (app *application) uploadFile(writer http.ResponseWriter, request *http.Req
 
 	fileExt = strings.ToLower(filepath.Ext(fileHeader.Filename))
 
-	allowedExtensions := map[string]bool{
-		".jpg":  true,
-		".jpeg": true,
-		".png":  true,
-		// Add more if needed (e.g., ".gif", ".webp")
-	}
-
 	if !allowedExtensions[fileExt] {
-		app.badRequestResponse(writer, request, errors.New("invalid file extension"))
+		app.badRequestResponse(writer, request, errors.New("invalid file extension"), nil)
 		return errors.New("invalid file extension"), "", ""
 	}
 

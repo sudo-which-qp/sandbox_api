@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"godsendjoseph.dev/sandbox-api/cmd/api/handlers"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,7 +52,7 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx = context.WithValue(ctx, handlers.userCtx, user)
+		ctx = context.WithValue(ctx, userCtx, user)
 
 		next.ServeHTTP(writer, request.WithContext(ctx))
 	})

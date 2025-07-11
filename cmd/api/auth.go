@@ -3,8 +3,8 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -17,9 +17,11 @@ import (
 )
 
 type RegisterUserPayload struct {
-	Username string `json:"username" validate:"required,max=100"`
-	Email    string `json:"email" validate:"required,email,max=255"`
-	Password string `json:"password" validate:"required,min=8,max=100"`
+	FirstName string `json:"first_name" validate:"required,max=100"`
+	LastName  string `json:"last_name" validate:"required,max=100"`
+	Username  string `json:"username" validate:"required,max=100"`
+	Email     string `json:"email" validate:"required,email,max=255"`
+	Password  string `json:"password" validate:"required,min=8,max=100"`
 }
 
 type CreateUserTokenPayload struct {
@@ -28,16 +30,16 @@ type CreateUserTokenPayload struct {
 }
 
 func (app *application) registerUserHandler(writer http.ResponseWriter, request *http.Request) {
-	log.Printf("Frontend URL: %s", app.config.frontendURL)
 	var payload RegisterUserPayload
 
 	if err := readJSON(writer, request, &payload); err != nil {
-		app.badRequestResponse(writer, request, err)
+		app.badRequestResponse(writer, request, err, nil)
 		return
 	}
 
 	if err := Validate.Struct(payload); err != nil {
-		app.badRequestResponse(writer, request, err)
+		msg, errorsMap := formatValidationErrors(err)
+		app.badRequestResponse(writer, request, errors.New(msg), errorsMap)
 		return
 	}
 
@@ -67,9 +69,9 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 	if err != nil {
 		switch err {
 		case store.ErrDuplicateEmail:
-			app.badRequestResponse(writer, request, err)
+			app.badRequestResponse(writer, request, err, nil)
 		case store.ErrDuplicateUsername:
-			app.badRequestResponse(writer, request, err)
+			app.badRequestResponse(writer, request, err, nil)
 		default:
 			app.internalServerError(writer, request, err)
 		}
@@ -94,11 +96,12 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 
 	// send the user an email
 	// there is an option for using Go Routine to send email
-	err = app.mailer.Send(
+	err = app.mailer.SendWithOptions(
 		mailer.UserWelcomeTemplate,
 		user.Username, user.Email,
 		"Finish up your Registration",
 		vars,
+		mailer.AsyncInMemory,
 		!isProdEnv,
 	)
 
@@ -125,12 +128,12 @@ func (app *application) loginUserHandler(writer http.ResponseWriter, request *ht
 	var payload CreateUserTokenPayload
 
 	if err := readJSON(writer, request, &payload); err != nil {
-		app.badRequestResponse(writer, request, err)
+		app.badRequestResponse(writer, request, err, nil)
 		return
 	}
 
 	if err := Validate.Struct(payload); err != nil {
-		app.badRequestResponse(writer, request, err)
+		app.badRequestResponse(writer, request, err, nil)
 		return
 	}
 
@@ -173,6 +176,22 @@ func (app *application) loginUserHandler(writer http.ResponseWriter, request *ht
 		app.internalServerError(writer, request, err)
 		return
 	}
+}
+
+func (app *application) verifyEmailHandler(writer http.ResponseWriter, request *http.Request) {
+
+}
+
+func (app *application) forgotPasswordHandler(writer http.ResponseWriter, request *http.Request) {
+
+}
+
+func (app *application) resetPasswordHandler(writer http.ResponseWriter, request *http.Request) {
+
+}
+
+func (app *application) veriftOtpHandler(writer http.ResponseWriter, request *http.Request) {
+
 }
 
 // ==================== Private Methods ===================== //
