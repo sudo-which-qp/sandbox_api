@@ -11,12 +11,13 @@ import (
 )
 
 var (
-	ErrNotFound          = errors.New("record not found")
-	ErrConflict          = errors.New("record already exists")
-	ErrDuplicate         = errors.New("record with email already exists")
-	ErrDuplicateEmail    = errors.New("record with email already exists")
-	ErrDuplicateUsername = errors.New("record with username already exists")
-	QueryTimeoutDuration = time.Second * 5
+	ErrNotFound           = errors.New("record not found")
+	ErrConflict           = errors.New("record already exists")
+	ErrDuplicate          = errors.New("record with email already exists")
+	ErrDuplicateEmail     = errors.New("record with email already exists")
+	ErrDuplicateUsername  = errors.New("record with username already exists")
+	ErrAccountNotVerified = errors.New("account is not verified")
+	QueryTimeoutDuration  = time.Second * 5
 )
 
 type Storage struct {

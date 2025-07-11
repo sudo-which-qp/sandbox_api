@@ -162,7 +162,14 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 	normalizedEmail := normalizeEmail(email)
 
 	query := `
-	SELECT id, username, email, password, created_at, updated_at FROM users WHERE normalized_email = ? AND is_active = true`
+    SELECT 
+    u.id, u.username, u.email, u.password, u.is_active, u.created_at, u.updated_at, 
+    u.role_id,
+    r.id, r.name, r.level, r.description
+    FROM users u
+    LEFT JOIN roles r ON u.role_id = r.id
+    WHERE u.normalized_email = ?
+`
 
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()
@@ -170,13 +177,24 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 	row := storage.db.QueryRowContext(ctx, query, normalizedEmail)
 
 	user := &models.User{}
+	var roleID sql.NullInt64
+	var roleName sql.NullString
+	var roleLevel sql.NullInt64
+	var roleDescription sql.NullString
+
 	err := row.Scan(
 		&user.ID,
 		&user.Username,
 		&user.Email,
 		&user.Password.Hash,
+		&user.IsActive,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.RoleID,
+		&roleID,
+		&roleName,
+		&roleLevel,
+		&roleDescription,
 	)
 	if err != nil {
 		switch {
@@ -185,6 +203,18 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 		default:
 			return nil, err
 		}
+	}
+
+	// Set role fields only if they're not NULL
+	if roleID.Valid {
+		user.Role.ID = int(roleID.Int64)
+		user.Role.Name = roleName.String
+		user.Role.Level = int(roleLevel.Int64)
+		user.Role.Description = roleDescription.String
+	}
+
+	if !user.IsActive {
+		return nil, ErrAccountNotVerified
 	}
 
 	return user, nil

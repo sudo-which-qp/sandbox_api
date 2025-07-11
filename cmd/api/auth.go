@@ -151,6 +151,8 @@ func (app *application) loginUserHandler(writer http.ResponseWriter, request *ht
 		switch err {
 		case store.ErrNotFound:
 			app.unauthorizedErrorResponse(writer, request, err)
+		case store.ErrAccountNotVerified:
+			app.unauthorizedErrorResponse(writer, request, err)
 		default:
 			app.internalServerError(writer, request, err)
 		}
@@ -171,8 +173,13 @@ func (app *application) loginUserHandler(writer http.ResponseWriter, request *ht
 		return
 	}
 
+	var data = map[string]any{
+		"user":  user,
+		"token": token,
+	}
+
 	// send back the token
-	if err := writeJSON(writer, http.StatusOK, "token created", token); err != nil {
+	if err := writeJSON(writer, http.StatusOK, "User authenticated", data); err != nil {
 		app.internalServerError(writer, request, err)
 		return
 	}

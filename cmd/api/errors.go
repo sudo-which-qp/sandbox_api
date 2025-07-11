@@ -41,12 +41,12 @@ func (app *application) forbiddenResponseError(writer http.ResponseWriter, reque
 
 func (app *application) unauthorizedErrorResponse(writer http.ResponseWriter, request *http.Request, err error) {
 	app.logger.Errorf("unauthorized error", "method", request.Method, "path", request.URL.Path, "error", err.Error())
-	writeJSONError(writer, http.StatusUnauthorized, "unauthorized", nil)
+	writeJSONError(writer, http.StatusUnauthorized, err.Error(), nil)
 }
 
 func (app *application) unauthorizedPwdErrorResponse(writer http.ResponseWriter, request *http.Request, err error) {
 	app.logger.Errorf("unauthorized password error", "method", request.Method, "path", request.URL.Path, "error", err.Error())
-	writeJSONError(writer, http.StatusUnauthorized, "unauthorized, password is incorrect", nil)
+	writeJSONError(writer, http.StatusUnauthorized, "password is incorrect", nil)
 }
 
 func (app *application) unauthorizedBasicErrorResponse(writer http.ResponseWriter, request *http.Request, err error) {
