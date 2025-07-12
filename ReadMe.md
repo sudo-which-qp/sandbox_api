@@ -1,38 +1,111 @@
-## QP Go Backend Template V1
+# QP API Sandbox
 
-<p>This is a template for me writing go applications for backend services, I created this to make it easy for me to start up a Go application for myself just as how easy it is to just start up a Laravel Application with no stress. This template comes with everything you will need to setup to start building backend applications in Golang.</p>
+A flexible REST API sandbox built with Go for testing and prototyping common backend operations including authentication, authorization, CRUD operations, and other API patterns.
 
-<p>It uses docker to make sure that you are running an environment that will not give you any issues when you try to run it on any other machine, be in Linux, Windows or Mac OS. I have taken time to make sure it works fine and runs all you will need to just start building instead of setting up.</p>
+## Features
 
-## What it contains
+- **Authentication & Authorization**: JWT-based auth, role-based access control
+- **CRUD Operations**: Complete Create, Read, Update, Delete functionality
+- **Database Integration**: Support for multiple database backends
+- **Middleware**: Request logging, CORS, rate limiting
+- **Testing Environment**: Perfect for API testing and development
+- **Docker Support**: Easy containerization and deployment
 
-1. Docker / Docker Compose
-2. Dockerfile for production and development
-3. Redis
-4. MySQL
-5. Database Seeding
-6. Cron Job
-7. Email Queuing
-8. phpMyAdmin for viewing database
-9. Email Sending Service
-10. Air for hot reload of the server
-11. Server Graceful Shutdown
-12. Rate Limiters
-13. Error Notification with Slack
-14. Uses JWT
-15. Migration for database migrate management
+## Prerequisites
 
-## How to run it
+- Go 1.24 or higher
+- Database (PostgreSQL or MySQL)
+- Docker
 
-1. Make sure you have Docker running on your machine
-2. clone repo
-3. run "docker-compose up --build"
-4. It will run and build the docker compose file for development
+## Installation
 
-## How to run Go and other commands
+1. Clone the repository:
+```bash
+git clone https://github.com/sudo-which-qp/sandbox_api
+cd sandbox_api
+```
 
-1. Open another terminal in the project directory
-2. Run "docker ps" to find the docker container that is running the go project
-3. Get the ID of the container it should look like this "011d5efb29e3"
-4. Now run "docker exec -it 011d5efb29e3 sh"
-5. This will give you access to a shell environment in the docker container of the project
+2. Install dependencies:
+```bash
+go mod download
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+4. Run database migrations:
+```bash
+make migrate-up
+```
+
+## Usage
+
+### Starting the Server
+There are two docker files available: `Dockerfile` and `Dockerfile.dev`. On the docker-compose.yml you can change it there for dev or production. But you can also run the server with the go command: `go run cmd/api/main.go`. if you don't have docker installed.
+
+```bash
+# Development mode
+docker-compose up --build
+```
+
+## API Endpoints
+
+### Authentication
+- `POST /v1/auth/register` - Register a new user
+- `POST /v1/auth/login` - Login user
+- `POST /v1/auth/verify-email` - Verify user email
+- `POST /v1/auth/forgot-password` - Forgot password
+- `POST /v1/auth/reset-password` - Reset password
+- `POST /v1/auth/resend-otp` - Resend OTP
+
+### Example API Calls
+
+```bash
+# Register a new user
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123","name":"Test User"}'
+
+# Login
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+
+
+## Development
+
+### Adding New Endpoints
+
+1. Define the model in `internal/models/`
+2. Create database repository `internal/store/`
+3. Add HTTP handlers in `cmd/api/`
+4. Register routes in the main server file
+
+### Database Migrations
+
+```bash
+# Create new migration
+make migration-create user_table
+
+# Run migrations
+make migrate-up
+
+# Rollback migrations
+make migrate-down
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the CC0 1.0 Universal License - see the [LICENSE](LICENSE) file for details.
