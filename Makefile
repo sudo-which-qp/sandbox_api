@@ -1,11 +1,7 @@
 test:
 	@go test -v ./...
 
-.PHONY: migration-create-dev
-migration-create:
-	@migrate create -ext sql -dir cmd/migrate/migrations $(filter-out $@,$(MAKECMDGOALS))
-
-.PHONY: migration-create-prod
+.PHONY: migration-create
 migration-create:
 	@migrate create -ext sql -dir cmd/migrate/migrations $(filter-out $@,$(MAKECMDGOALS))
 
