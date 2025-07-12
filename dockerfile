@@ -1,48 +1,47 @@
-# Build stage
+# ---------- Build Stage ----------
 FROM golang:1.24.1-alpine AS builder
 
-# Install necessary build tools
-RUN apk add --no-cache gcc musl-dev
+# Install necessary build tools and make
+RUN apk add --no-cache build-base make
 
-# Set the working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy go.mod and go.sum first to leverage Docker cache
+# Copy dependency files first (to leverage cache)
 COPY go.mod go.sum ./
-
-# Download Go modules
 RUN go mod download
 
-# Copy the source code
+# Copy the entire source code
 COPY . .
 
 # Build the Go application
 RUN go build -o bin/main ./cmd/api/*.go
 
-# Install golang-migrate in the builder stage
+# Install golang-migrate CLI with MySQL support
 RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-# Final stage
+
+# ---------- Runtime Stage ----------
 FROM alpine:latest
 
-# Add required runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata
+# Install runtime dependencies and make (optional but useful for debugging/migrations)
+RUN apk --no-cache add ca-certificates tzdata make
 
+# Set working directory
 WORKDIR /app
 
-# Copy the binary from the builder stage
+# Copy built Go binary
 COPY --from=builder /app/bin/main /app/bin/main
 
-# Copy the migrate binary from the builder stage
+# Copy migrate binary
 COPY --from=builder /go/bin/migrate /app/bin/migrate
 
-# Copy migration files
+# Copy migration files and env config
 COPY --from=builder /app/cmd/migrate/migrations /app/cmd/migrate/migrations
+COPY --from=builder /app/.env /app/.env
 
-COPY .env /app/.env
-
-# Expose port
+# Expose application port
 EXPOSE 8080
 
-# Run the application
+# Default command
 CMD ["/app/bin/main"]
