@@ -27,6 +27,10 @@ type LoginUserPayload struct {
 	Password string `json:"password" validate:"required,min=8,max=100"`
 }
 
+type ResendOTPPayload struct {
+	Email string `json:"email" validate:"required,email,max=255"`
+}
+
 func (app *application) registerUserHandler(writer http.ResponseWriter, request *http.Request) {
 	var payload RegisterUserPayload
 
@@ -45,7 +49,6 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 		app.internalServerError(writer, request, err)
 		return
 	}
-
 	otpCodeExpiring := time.Now().Add(5 * time.Minute)
 
 	user := &models.User{
@@ -81,28 +84,7 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 		return
 	}
 
-	isProdEnv := app.config.env == "production"
-
-	vars := struct {
-		Username string
-		OtpCode  string
-		OTPExp   string
-	}{
-		Username: user.Username,
-		OtpCode:  otpCode,
-		OTPExp:   otpCodeExpiring.String(),
-	}
-
-	// send the user an email
-	// there is an option for using Go Routine to send email
-	err = app.mailer.SendWithOptions(
-		mailer.UserWelcomeTemplate,
-		user.Username, user.Email,
-		"Finish up your Registration",
-		vars,
-		mailer.AsyncInMemory,
-		!isProdEnv,
-	)
+	err = app.sendOTP(user, "Finish up your Registration", otpCode, otpCodeExpiring, mailer.UserWelcomeTemplate)
 
 	if err != nil {
 		app.logger.Errorw("error sending welcome email", "error", err)
@@ -197,7 +179,54 @@ func (app *application) resetPasswordHandler(writer http.ResponseWriter, request
 
 }
 
-func (app *application) veriftOtpHandler(writer http.ResponseWriter, request *http.Request) {
+func (app *application) veriftOTPHandler(writer http.ResponseWriter, request *http.Request) {
+
+}
+
+func (app *application) resendOTPHandler(writer http.ResponseWriter, request *http.Request) {
+	var payload ResendOTPPayload
+
+	if err := readJSON(writer, request, &payload); err != nil {
+		app.badRequestResponse(writer, request, err)
+		return
+	}
+
+	isPayloadValid := validatePayload(writer, payload)
+	if !isPayloadValid {
+		return
+	}
+
+	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email)
+
+	if err != nil {
+		switch err {
+		case store.ErrNotFound:
+			app.unauthorizedErrorResponse(writer, request, err)
+		default:
+			app.internalServerError(writer, request, err)
+		}
+		return
+	}
+
+	otpCode, err := generateOTP()
+	if err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
+	otpCodeExpiring := time.Now().Add(5 * time.Minute)
+
+	err = app.sendOTP(user, "OTP Code", otpCode, otpCodeExpiring, mailer.UserWelcomeTemplate)
+
+	if err != nil {
+		app.logger.Errorw("error sending welcome email", "error", err)
+		app.internalServerError(writer, request, err)
+		return
+	}
+
+	if err := writeJSON(writer, http.StatusOK, "OTP sent", nil); err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
 
 }
 
@@ -214,6 +243,32 @@ func generateOTP() (string, error) {
 	// Format with leading zeros (e.g., 000123)
 	otp := fmt.Sprintf("%06d", n.Int64())
 	return otp, nil
+}
+
+func (app *application) sendOTP(user *models.User, subject string, otpCode string, otpCodeExpiring time.Time, emailTemplate string) error {
+	isProdEnv := app.config.env == "production"
+
+	vars := struct {
+		Username string
+		OtpCode  string
+		OTPExp   string
+		Subject  string
+	}{
+		Username: user.Username,
+		OtpCode:  otpCode,
+		OTPExp:   otpCodeExpiring.String(),
+		Subject:  subject,
+	}
+
+	return app.mailer.SendWithOptions(
+		emailTemplate,
+		user.Username,
+		user.Email,
+		subject,
+		vars,
+		mailer.AsyncInMemory,
+		!isProdEnv,
+	)
 }
 
 func (app *application) generateJWTToken(user *models.User) (string, error) {

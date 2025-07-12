@@ -207,7 +207,7 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 
 	// Set role fields only if they're not NULL
 	if roleID.Valid {
-		user.Role.ID = int(roleID.Int64)
+		user.Role.ID = roleID.Int64
 		user.Role.Name = roleName.String
 		user.Role.Level = int(roleLevel.Int64)
 		user.Role.Description = roleDescription.String
