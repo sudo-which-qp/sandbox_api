@@ -427,13 +427,12 @@ func (app *application) sendOTP(user *models.User, subject string, otpCode strin
 		Subject:  subject,
 	}
 
-	return app.mailer.SendWithOptions(
+	return app.mailer.Send(
 		emailTemplate,
 		user.Username,
 		user.Email,
 		subject,
 		vars,
-		mailer.AsyncInMemory,
 		!isProdEnv,
 	)
 }
