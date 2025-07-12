@@ -137,7 +137,7 @@ func (storage *UserStore) GetByID(ctx context.Context, id int64) (*models.User, 
 	return user, nil
 }
 
-func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+func (storage *UserStore) GetByEmail(ctx context.Context, email string, isLogin bool) (*models.User, error) {
 	normalizedEmail := normalizeEmail(email)
 
 	query := `
@@ -194,7 +194,7 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 		user.Role.Description = roleDescription.String
 	}
 
-	if !user.IsActive {
+	if !user.IsActive && isLogin == true {
 		return nil, ErrAccountNotVerified
 	}
 

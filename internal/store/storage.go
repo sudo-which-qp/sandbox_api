@@ -26,7 +26,7 @@ type Storage struct {
 		GetByID(context.Context, int64) (*models.User, error)
 		CreateUserTx(context.Context, *models.User) error
 		Delete(context.Context, int64) error
-		GetByEmail(context.Context, string) (*models.User, error)
+		GetByEmail(context.Context, string, bool) (*models.User, error)
 		UpdateOTPCode(context context.Context, user *models.User, otpCode string, otpExpiresAt string) error
 		VerifyEmail(context.Context, int64) error
 		ResetPassword(context.Context, *models.User) error

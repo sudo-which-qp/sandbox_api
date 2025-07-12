@@ -140,7 +140,7 @@ func (app *application) loginUserHandler(writer http.ResponseWriter, request *ht
 	}
 
 	// fetch the user (check if the user exists) from the payload
-	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email)
+	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email, true)
 	if err != nil {
 		switch err {
 		case store.ErrNotFound:
@@ -193,7 +193,7 @@ func (app *application) verifyEmailHandler(writer http.ResponseWriter, request *
 	}
 
 	ctx := request.Context()
-	user, err := app.store.Users.GetByEmail(ctx, payload.Email)
+	user, err := app.store.Users.GetByEmail(ctx, payload.Email, false)
 
 	if err != nil {
 		switch err {
@@ -243,7 +243,7 @@ func (app *application) forgotPasswordHandler(writer http.ResponseWriter, reques
 		return
 	}
 
-	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email)
+	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email, false)
 
 	if err != nil {
 		switch err {
@@ -296,7 +296,7 @@ func (app *application) resetPasswordHandler(writer http.ResponseWriter, request
 		return
 	}
 
-	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email)
+	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email, false)
 
 	if err != nil {
 		switch err {
@@ -356,7 +356,7 @@ func (app *application) resendOTPHandler(writer http.ResponseWriter, request *ht
 		return
 	}
 
-	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email)
+	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email, false)
 
 	if err != nil {
 		switch err {
