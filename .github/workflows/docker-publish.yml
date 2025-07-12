@@ -1,4 +1,3 @@
-# .github/workflows/docker-publish.yml
 name: Publish Docker image to GHCR
 
 on:
@@ -14,7 +13,11 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Recreate .env file from GitHub Secret
+        run: echo "${{ secrets.DOTENV_FILE }}" > .env
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
