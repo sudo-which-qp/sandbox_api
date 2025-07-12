@@ -19,6 +19,9 @@ COPY . .
 # Build the Go application
 RUN go build -o bin/main ./cmd/api/*.go
 
+# Install golang-migrate in the builder stage
+RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
 # Final stage
 FROM alpine:latest
 
@@ -30,11 +33,11 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /app/bin/main /app/bin/main
 
+# Copy the migrate binary from the builder stage
+COPY --from=builder /go/bin/migrate /app/bin/migrate
+
 # Copy migration files
 COPY --from=builder /app/cmd/migrate/migrations /app/cmd/migrate/migrations
-
-# Install golang-migrate
-RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 COPY .env /app/.env
 
