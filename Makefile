@@ -7,15 +7,15 @@ migration-create:
 
 .PHONY: migrate-up
 migrate-up:
-	@go run cmd/api/*.go up
+    @/app/bin/migrate -path /app/cmd/migrate/migrations -database "$(DATABASE_URL)" up
 
 .PHONY: migrate-down
 migrate-down:
-	@go run cmd/api/*.go down
+    @/app/bin/migrate -path /app/cmd/migrate/migrations -database "$(DATABASE_URL)" down
 
 .PHONY: migrate-force
 migrate-force:
-	@go run cmd/api/*.go $(version) force
+    @/app/bin/migrate -path /app/cmd/migrate/migrations -database "$(DATABASE_URL)" force $(version)
 
 .PHONY: seed
 seed:

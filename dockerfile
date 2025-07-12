@@ -23,6 +23,7 @@ RUN go build -o bin/main ./cmd/api/*.go
 # Install golang-migrate CLI with MySQL support
 RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
+
 # ---------- Runtime Stage ----------
 FROM alpine:latest
 
@@ -41,9 +42,6 @@ COPY --from=builder /go/bin/migrate /app/bin/migrate
 # Copy migration files and env config
 COPY --from=builder /app/cmd/migrate/migrations /app/cmd/migrate/migrations
 COPY --from=builder /app/.env /app/.env
-
-# Copy source files for migrations
-COPY --from=builder /app/cmd/api /app/cmd/api
 
 COPY --from=builder /app/Makefile /app/Makefile
 
