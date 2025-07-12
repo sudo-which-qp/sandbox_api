@@ -25,10 +25,11 @@ RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@la
 
 
 # ---------- Runtime Stage ----------
+# ---------- Runtime Stage ----------
 FROM alpine:latest
 
-# Install runtime dependencies and make (optional but useful for debugging/migrations)
-RUN apk --no-cache add ca-certificates tzdata make
+# Install runtime dependencies, make, and Go
+RUN apk --no-cache add ca-certificates tzdata make go
 
 # Set working directory
 WORKDIR /app
