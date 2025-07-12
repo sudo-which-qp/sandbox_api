@@ -203,23 +203,29 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 
 func (storage *UserStore) VerifyEmail(ctx context.Context, userId int64) error {
 	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
-		return storage.verifyEmail(ctx, tx, userId)
+		return storage.verifyEmailQuery(ctx, tx, userId)
 	})
 }
 
 func (storage *UserStore) UpdateOTPCode(ctx context.Context, user *models.User, otpCode string, otpExp string) error {
 	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
-		return storage.updateOTP(ctx, tx, user, otpCode, otpExp)
+		return storage.updateOTPQuery(ctx, tx, user, otpCode, otpExp)
+	})
+}
+
+func (storage *UserStore) ResetPassword(ctx context.Context, user *models.User) error {
+	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
+		return storage.resetPasswordQuery(ctx, tx, user)
 	})
 }
 
 func (storage *UserStore) Delete(ctx context.Context, userID int64) error {
 	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
-		if err := storage.delete(ctx, tx, userID); err != nil {
+		if err := storage.deleteQuery(ctx, tx, userID); err != nil {
 			return err
 		}
 
-		if err := storage.deleteUserInvitations(ctx, tx, userID); err != nil {
+		if err := storage.deleteUserInvitationsQuery(ctx, tx, userID); err != nil {
 			return err
 		}
 
@@ -227,17 +233,16 @@ func (storage *UserStore) Delete(ctx context.Context, userID int64) error {
 	})
 }
 
-//================== Private methods ======================//
-
-func (storage *UserStore) verifyEmail(ctx context.Context, tx *sql.Tx, userID int64) error {
+// ================== Private methods ======================//
+func (storage *UserStore) resetPasswordQuery(ctx context.Context, tx *sql.Tx, user *models.User) error {
 	query := `UPDATE users
-			  SET is_active = ?
+			  SET password = ?, otp_code = ?
 			  WHERE id = ?`
 
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()
 
-	_, err := tx.ExecContext(ctx, query, true, userID)
+	_, err := tx.ExecContext(ctx, query, user.Password.Hash, "", user.ID)
 
 	if err != nil {
 		return err
@@ -246,7 +251,24 @@ func (storage *UserStore) verifyEmail(ctx context.Context, tx *sql.Tx, userID in
 	return nil
 }
 
-func (storage *UserStore) updateOTP(ctx context.Context, tx *sql.Tx, user *models.User, otpCode string, otpExp string) error {
+func (storage *UserStore) verifyEmailQuery(ctx context.Context, tx *sql.Tx, userID int64) error {
+	query := `UPDATE users
+			  SET is_active = ?, otp_code = ?
+			  WHERE id = ?`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	_, err := tx.ExecContext(ctx, query, true, "", userID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (storage *UserStore) updateOTPQuery(ctx context.Context, tx *sql.Tx, user *models.User, otpCode string, otpExp string) error {
 	query := `UPDATE users
 			  SET otp_code = ?, otp_expires_at = ?
 			  WHERE id = ?`
@@ -263,7 +285,7 @@ func (storage *UserStore) updateOTP(ctx context.Context, tx *sql.Tx, user *model
 	return nil
 }
 
-func (storage *UserStore) update(ctx context.Context, tx *sql.Tx, user *models.User) error {
+func (storage *UserStore) updateQuery(ctx context.Context, tx *sql.Tx, user *models.User) error {
 	query := `UPDATE users
 			  SET username = ?, email = ?, is_active = ?
               WHERE id = ?`
@@ -280,7 +302,7 @@ func (storage *UserStore) update(ctx context.Context, tx *sql.Tx, user *models.U
 	return nil
 }
 
-func (storage *UserStore) deleteUserInvitations(ctx context.Context, tx *sql.Tx, userID int64) error {
+func (storage *UserStore) deleteUserInvitationsQuery(ctx context.Context, tx *sql.Tx, userID int64) error {
 	query := `DELETE FROM user_invitations WHERE user_id = ?`
 
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
@@ -295,7 +317,7 @@ func (storage *UserStore) deleteUserInvitations(ctx context.Context, tx *sql.Tx,
 	return nil
 }
 
-func (storage *UserStore) delete(ctx context.Context, tx *sql.Tx, userID int64) error {
+func (storage *UserStore) deleteQuery(ctx context.Context, tx *sql.Tx, userID int64) error {
 	query := `DELETE FROM users WHERE id = ?`
 
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)

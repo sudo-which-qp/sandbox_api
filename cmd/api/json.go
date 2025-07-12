@@ -5,6 +5,8 @@ import (
 	"errors"
 	"mime/multipart"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -116,6 +118,12 @@ func validatePayload(writer http.ResponseWriter, payload any) bool {
 	return true
 }
 
+func convertFieldName(fieldName string) string {
+	re := regexp.MustCompile(`([a-z])([A-Z])`)
+	spaced := re.ReplaceAllString(fieldName, `$1 $2`)
+	return strings.ToLower(spaced)
+}
+
 func formatValidationErrors(err error) (string, map[string]string) {
 	errorsMap := make(map[string]string)
 	var firstError string
@@ -124,20 +132,22 @@ func formatValidationErrors(err error) (string, map[string]string) {
 	if errors.As(err, &ve) {
 		for _, fieldErr := range ve {
 			field := fieldErr.Field()
+			// Convert field name to user-friendly format
+			friendlyField := convertFieldName(field)
 
 			// Create a more user-friendly error message
 			var msg string
 			switch fieldErr.Tag() {
 			case "required":
-				msg = field + " is required"
+				msg = friendlyField + " is required"
 			case "email":
-				msg = field + " must be a valid email address"
+				msg = friendlyField + " must be a valid email address"
 			case "min":
-				msg = field + " must be at least " + fieldErr.Param() + " characters long"
+				msg = friendlyField + " must be at least " + fieldErr.Param() + " characters long"
 			case "max":
-				msg = field + " must be at most " + fieldErr.Param() + " characters long"
+				msg = friendlyField + " must be at most " + fieldErr.Param() + " characters long"
 			default:
-				msg = field + " is " + fieldErr.Tag()
+				msg = friendlyField + " is " + fieldErr.Tag()
 			}
 
 			errorsMap[field] = msg

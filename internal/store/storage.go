@@ -29,6 +29,7 @@ type Storage struct {
 		GetByEmail(context.Context, string) (*models.User, error)
 		UpdateOTPCode(context context.Context, user *models.User, otpCode string, otpExpiresAt string) error
 		VerifyEmail(context.Context, int64) error
+		ResetPassword(context.Context, *models.User) error
 	}
 	Roles interface {
 		GetByName(context.Context, string) (*models.Role, error)

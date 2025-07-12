@@ -34,7 +34,13 @@ type ResendOTPPayload struct {
 
 type VerifyEmailPayload struct {
 	Email   string `json:"email" validate:"required,email,max=255"`
-	OTPCode string `json:"otp_code" validate:"required,max=6"`
+	OtpCode string `json:"otp_code" validate:"required,max=6"`
+}
+
+type ResetPasswordPayload struct {
+	Email       string `json:"email" validate:"required,email,max=255"`
+	OtpCode     string `json:"otp_code" validate:"required,max=6"`
+	NewPassword string `json:"new_password" validate:"required,min=8,max=100"`
 }
 
 func (app *application) registerUserHandler(writer http.ResponseWriter, request *http.Request) {
@@ -199,7 +205,7 @@ func (app *application) verifyEmailHandler(writer http.ResponseWriter, request *
 		return
 	}
 
-	if user.OtpCode != payload.OTPCode {
+	if user.OtpCode != payload.OtpCode {
 		app.unauthorizedErrorResponse(writer, request, errors.New("invalid otp code"))
 		return
 	}
@@ -225,15 +231,116 @@ func (app *application) verifyEmailHandler(writer http.ResponseWriter, request *
 }
 
 func (app *application) forgotPasswordHandler(writer http.ResponseWriter, request *http.Request) {
+	var payload ResendOTPPayload
 
+	if err := readJSON(writer, request, &payload); err != nil {
+		app.badRequestResponse(writer, request, err)
+		return
+	}
+
+	isPayloadValid := validatePayload(writer, payload)
+	if !isPayloadValid {
+		return
+	}
+
+	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email)
+
+	if err != nil {
+		switch err {
+		case store.ErrNotFound:
+			app.unauthorizedErrorResponse(writer, request, err)
+		default:
+			app.internalServerError(writer, request, err)
+		}
+		return
+	}
+
+	otpCode, err := generateOTP()
+	if err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
+	otpCodeExpiring := time.Now().Add(5 * time.Minute)
+
+	err = app.sendOTP(user, "OTP Code", otpCode, otpCodeExpiring, mailer.UserWelcomeTemplate)
+
+	if err != nil {
+		app.logger.Errorw("error sending welcome email", "error", err)
+		app.internalServerError(writer, request, err)
+		return
+	}
+
+	err = app.store.Users.UpdateOTPCode(request.Context(), user, otpCode, otpCodeExpiring.Format(time.RFC3339))
+
+	if err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
+
+	if err := writeJSON(writer, http.StatusOK, "Email sent for password reset", nil); err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
 }
 
 func (app *application) resetPasswordHandler(writer http.ResponseWriter, request *http.Request) {
+	var payload ResetPasswordPayload
 
-}
+	if err := readJSON(writer, request, &payload); err != nil {
+		app.badRequestResponse(writer, request, err)
+		return
+	}
 
-func (app *application) veriftOTPHandler(writer http.ResponseWriter, request *http.Request) {
+	isPayloadValid := validatePayload(writer, payload)
+	if !isPayloadValid {
+		return
+	}
 
+	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email)
+
+	if err != nil {
+		switch err {
+		case store.ErrNotFound:
+			app.unauthorizedErrorResponse(writer, request, err)
+		default:
+			app.internalServerError(writer, request, err)
+		}
+		return
+	}
+
+	if user.OtpCode != payload.OtpCode {
+		app.unauthorizedErrorResponse(writer, request, errors.New("invalid otp code"))
+		return
+	}
+
+	otpExp, err := time.Parse(time.RFC3339, user.OtpExp)
+	if err != nil {
+		app.internalServerError(writer, request, fmt.Errorf("invalid OTP expiration format: %w", err))
+		return
+	}
+
+	if time.Now().After(otpExp) {
+		app.unauthorizedErrorResponse(writer, request, errors.New("OTP code has expired"))
+		return
+	}
+
+	err = user.Password.Set(payload.NewPassword)
+	if err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
+
+	err = app.store.Users.ResetPassword(request.Context(), user)
+
+	if err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
+
+	if err := writeJSON(writer, http.StatusOK, "You have successfully reset your", nil); err != nil {
+		app.internalServerError(writer, request, err)
+		return
+	}
 }
 
 func (app *application) resendOTPHandler(writer http.ResponseWriter, request *http.Request) {

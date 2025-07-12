@@ -28,7 +28,6 @@ func (app *application) registerRoutes(router *chi.Mux) {
 			route.Post("/verify-email", app.verifyEmailHandler)
 			route.Post("/forgot-password", app.forgotPasswordHandler)
 			route.Post("/reset-password", app.resetPasswordHandler)
-			route.Post("/verify-otp", app.veriftOTPHandler)
 			route.Post("/resend-otp", app.resendOTPHandler)
 		})
 	})
