@@ -4,6 +4,7 @@ FROM golang:1.24.1-alpine AS builder
 # Install necessary build tools
 RUN apk add --no-cache gcc musl-dev
 
+# Set the working directory inside the container
 WORKDIR /app
 
 # Copy go.mod and go.sum first to leverage Docker cache
@@ -18,26 +19,25 @@ COPY . .
 # Build the Go application
 RUN go build -o bin/main ./cmd/api/*.go
 
-# Final stage - Use golang image instead of alpine
-FROM golang:1.24.1-alpine
+# Install golang-migrate in the builder stage
+RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Final stage
+FROM alpine:latest
 
 # Add required runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata make
+RUN apk --no-cache add ca-certificates tzdata
 
 WORKDIR /app
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/bin/main /app/bin/main
 
-# Copy migration files and Makefile
+# Copy the migrate binary from the builder stage
+COPY --from=builder /go/bin/migrate /app/bin/migrate
+
+# Copy migration files
 COPY --from=builder /app/cmd/migrate/migrations /app/cmd/migrate/migrations
-COPY --from=builder /app/Makefile /app/Makefile
-
-# Copy source code (needed for go run commands)
-COPY --from=builder /app /app
-
-# Install golang-migrate
-RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 COPY .env /app/.env
 
