@@ -7,8 +7,8 @@ RUN apk add --no-cache build-base make
 # Set working directory
 WORKDIR /app
 
+# Copy Makefile for inclusion in the final image too
 COPY Makefile /app/Makefile
-
 
 # Copy dependency files first (to leverage cache)
 COPY go.mod go.sum ./
@@ -42,6 +42,8 @@ COPY --from=builder /go/bin/migrate /app/bin/migrate
 # Copy migration files and env config
 COPY --from=builder /app/cmd/migrate/migrations /app/cmd/migrate/migrations
 COPY --from=builder /app/.env /app/.env
+
+COPY --from=builder /app/Makefile /app/Makefile
 
 # Expose application port
 EXPOSE 8080
