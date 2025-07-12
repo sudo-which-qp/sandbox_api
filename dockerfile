@@ -25,8 +25,8 @@ RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@la
 # Final stage
 FROM alpine:latest
 
-# Add required runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata
+# Add required runtime dependencies including make
+RUN apk --no-cache add ca-certificates tzdata make
 
 WORKDIR /app
 
@@ -38,6 +38,9 @@ COPY --from=builder /go/bin/migrate /app/bin/migrate
 
 # Copy migration files
 COPY --from=builder /app/cmd/migrate/migrations /app/cmd/migrate/migrations
+
+# Copy Makefile
+COPY --from=builder /app/Makefile /app/Makefile
 
 COPY .env /app/.env
 
