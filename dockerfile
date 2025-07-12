@@ -33,6 +33,9 @@ RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@la
 # Add Go binaries to PATH
 ENV PATH="/go/bin:$PATH"
 
+# Copy .env for runtime
+COPY .env /app/.env
+
 # Expose app port
 EXPOSE 8080
 
