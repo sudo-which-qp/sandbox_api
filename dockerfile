@@ -7,8 +7,6 @@ RUN apk add --no-cache gcc musl-dev
 # Set the working directory inside the container
 WORKDIR /app
 
-RUN go install github.com/air-verse/air@latest
-
 # Copy go.mod and go.sum first to leverage Docker cache
 COPY go.mod go.sum ./
 
@@ -35,6 +33,9 @@ COPY --from=builder /app/bin/main /app/bin/main
 # Copy migration files
 COPY --from=builder /app/cmd/migrate/migrations /app/cmd/migrate/migrations
 
+# Install golang-migrate
+RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
 COPY .env /app/.env
 
 # Expose port
@@ -42,4 +43,3 @@ EXPOSE 8080
 
 # Run the application
 CMD ["/app/bin/main"]
-# CMD ["air", "-c", ".air.toml"]
