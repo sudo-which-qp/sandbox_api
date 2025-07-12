@@ -7,6 +7,9 @@ RUN apk add --no-cache build-base make
 # Set working directory
 WORKDIR /app
 
+COPY Makefile /app/Makefile
+
+
 # Copy dependency files first (to leverage cache)
 COPY go.mod go.sum ./
 RUN go mod download
