@@ -63,7 +63,7 @@ func (app *application) registerUserHandler(writer http.ResponseWriter, request 
 		Username:  payload.Username,
 		Email:     payload.Email,
 		OtpCode:   otpCode,
-		OtpExp:    otpCodeExpiring.String(),
+		OtpExp:    otpCodeExpiring.Format(time.RFC3339),
 		Role: models.Role{
 			Name: "user",
 		},
@@ -204,8 +204,7 @@ func (app *application) verifyEmailHandler(writer http.ResponseWriter, request *
 		return
 	}
 
-	layout := time.RFC3339
-	otpExp, err := time.Parse(layout, user.OtpExp)
+	otpExp, err := time.Parse(time.RFC3339, user.OtpExp)
 	if err != nil {
 		app.internalServerError(writer, request, fmt.Errorf("invalid OTP expiration format: %w", err))
 		return
@@ -213,6 +212,12 @@ func (app *application) verifyEmailHandler(writer http.ResponseWriter, request *
 
 	if time.Now().After(otpExp) {
 		app.unauthorizedErrorResponse(writer, request, errors.New("OTP code has expired"))
+		return
+	}
+
+	err = app.store.Users.VerifyEmail(ctx, user.ID)
+	if err != nil {
+		app.internalServerError(writer, request, err)
 		return
 	}
 
@@ -271,7 +276,7 @@ func (app *application) resendOTPHandler(writer http.ResponseWriter, request *ht
 		return
 	}
 
-	err = app.store.Users.UpdateOTPCode(request.Context(), user, otpCode, otpCodeExpiring.String())
+	err = app.store.Users.UpdateOTPCode(request.Context(), user, otpCode, otpCodeExpiring.Format(time.RFC3339))
 
 	if err != nil {
 		app.internalServerError(writer, request, err)

@@ -88,26 +88,6 @@ func (storage *UserStore) Create(ctx context.Context, tx *sql.Tx, user *models.U
 	return nil
 }
 
-func (storage *UserStore) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	normalizedEmail := normalizeEmail(email)
-
-	query := `SELECT 1 FROM users WHERE normalized_email = ? LIMIT 1`
-
-	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
-	defer cancel()
-
-	var exists int
-	err := storage.db.QueryRowContext(ctx, query, normalizedEmail).Scan(&exists)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	return exists == 1, nil
-}
-
 func (storage *UserStore) GetByID(ctx context.Context, id int64) (*models.User, error) {
 	query := `
 		SELECT 
@@ -221,6 +201,12 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 	return user, nil
 }
 
+func (storage *UserStore) VerifyEmail(ctx context.Context, userId int64) error {
+	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
+		return storage.verifyEmail(ctx, tx, userId)
+	})
+}
+
 func (storage *UserStore) UpdateOTPCode(ctx context.Context, user *models.User, otpCode string, otpExp string) error {
 	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
 		return storage.updateOTP(ctx, tx, user, otpCode, otpExp)
@@ -242,6 +228,23 @@ func (storage *UserStore) Delete(ctx context.Context, userID int64) error {
 }
 
 //================== Private methods ======================//
+
+func (storage *UserStore) verifyEmail(ctx context.Context, tx *sql.Tx, userID int64) error {
+	query := `UPDATE users
+			  SET is_active = ?
+			  WHERE id = ?`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	_, err := tx.ExecContext(ctx, query, true, userID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (storage *UserStore) updateOTP(ctx context.Context, tx *sql.Tx, user *models.User, otpCode string, otpExp string) error {
 	query := `UPDATE users
