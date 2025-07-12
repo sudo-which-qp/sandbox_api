@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -29,6 +30,11 @@ type LoginUserPayload struct {
 
 type ResendOTPPayload struct {
 	Email string `json:"email" validate:"required,email,max=255"`
+}
+
+type VerifyEmailPayload struct {
+	Email   string `json:"email" validate:"required,email,max=255"`
+	OTPCode string `json:"otp_code" validate:"required,max=6"`
 }
 
 func (app *application) registerUserHandler(writer http.ResponseWriter, request *http.Request) {
@@ -168,7 +174,49 @@ func (app *application) loginUserHandler(writer http.ResponseWriter, request *ht
 }
 
 func (app *application) verifyEmailHandler(writer http.ResponseWriter, request *http.Request) {
+	var payload VerifyEmailPayload
 
+	if err := readJSON(writer, request, &payload); err != nil {
+		app.badRequestResponse(writer, request, err)
+		return
+	}
+
+	isPayloadValid := validatePayload(writer, payload)
+	if !isPayloadValid {
+		return
+	}
+
+	ctx := request.Context()
+	user, err := app.store.Users.GetByEmail(ctx, payload.Email)
+
+	if err != nil {
+		switch err {
+		case store.ErrNotFound:
+			app.unauthorizedErrorResponse(writer, request, err)
+		default:
+			app.internalServerError(writer, request, err)
+		}
+		return
+	}
+
+	if user.OtpCode != payload.OTPCode {
+		app.unauthorizedErrorResponse(writer, request, errors.New("invalid otp code"))
+		return
+	}
+
+	layout := time.RFC3339
+	otpExp, err := time.Parse(layout, user.OtpExp)
+	if err != nil {
+		app.internalServerError(writer, request, fmt.Errorf("invalid OTP expiration format: %w", err))
+		return
+	}
+
+	if time.Now().After(otpExp) {
+		app.unauthorizedErrorResponse(writer, request, errors.New("OTP code has expired"))
+		return
+	}
+
+	writeJSON(writer, http.StatusOK, "Email verified", user.OtpCode)
 }
 
 func (app *application) forgotPasswordHandler(writer http.ResponseWriter, request *http.Request) {
@@ -219,6 +267,13 @@ func (app *application) resendOTPHandler(writer http.ResponseWriter, request *ht
 
 	if err != nil {
 		app.logger.Errorw("error sending welcome email", "error", err)
+		app.internalServerError(writer, request, err)
+		return
+	}
+
+	err = app.store.Users.UpdateOTPCode(request.Context(), user, otpCode, otpCodeExpiring.String())
+
+	if err != nil {
 		app.internalServerError(writer, request, err)
 		return
 	}

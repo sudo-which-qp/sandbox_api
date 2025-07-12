@@ -5,9 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/go-sql-driver/mysql"
-	"strings"
-
 	"godsendjoseph.dev/sandbox-api/internal/models"
+	"strings"
 )
 
 type UserStore struct {
@@ -163,7 +162,7 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 
 	query := `
     SELECT 
-    u.id, u.username, u.email, u.password, u.is_active, u.created_at, u.updated_at, 
+    u.id, u.username, u.email, u.password, u.otp_code, u.otp_expires_at, u.is_active, u.created_at, u.updated_at, 
     u.role_id,
     r.id, r.name, r.level, r.description
     FROM users u
@@ -187,6 +186,8 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 		&user.Username,
 		&user.Email,
 		&user.Password.Hash,
+		&user.OtpCode,
+		&user.OtpExp,
 		&user.IsActive,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -220,6 +221,12 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string) (*models
 	return user, nil
 }
 
+func (storage *UserStore) UpdateOTPCode(ctx context.Context, user *models.User, otpCode string, otpExp string) error {
+	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
+		return storage.updateOTP(ctx, tx, user, otpCode, otpExp)
+	})
+}
+
 func (storage *UserStore) Delete(ctx context.Context, userID int64) error {
 	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
 		if err := storage.delete(ctx, tx, userID); err != nil {
@@ -235,6 +242,23 @@ func (storage *UserStore) Delete(ctx context.Context, userID int64) error {
 }
 
 //================== Private methods ======================//
+
+func (storage *UserStore) updateOTP(ctx context.Context, tx *sql.Tx, user *models.User, otpCode string, otpExp string) error {
+	query := `UPDATE users
+			  SET otp_code = ?, otp_expires_at = ?
+			  WHERE id = ?`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	_, err := tx.ExecContext(ctx, query, otpCode, otpExp, user.ID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (storage *UserStore) update(ctx context.Context, tx *sql.Tx, user *models.User) error {
 	query := `UPDATE users

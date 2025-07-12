@@ -28,6 +28,7 @@ type Storage struct {
 		Delete(context.Context, int64) error
 		ExistsByEmail(context.Context, string) (bool, error)
 		GetByEmail(context.Context, string) (*models.User, error)
+		UpdateOTPCode(context context.Context, user *models.User, otpCode string, otpExpiresAt string) error
 	}
 	Roles interface {
 		GetByName(context.Context, string) (*models.Role, error)
