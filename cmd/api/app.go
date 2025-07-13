@@ -122,18 +122,6 @@ type slackConfig struct {
 	enabled    bool
 }
 
-type SuccessResponse struct {
-	Status  int64          `json:"status"`
-	Success bool           `json:"success"`
-	Message string         `json:"message"`
-	Data    map[string]any `json:"data"`
-}
-
-type ErrorResponse struct {
-	Status  int64  `json:"status"`
-	Message string `json:"message"`
-}
-
 type contextKey string
 
 func (app *application) mount() http.Handler {
