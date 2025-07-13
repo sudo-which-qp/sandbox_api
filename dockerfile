@@ -117,7 +117,7 @@ RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@la
 
 ENV PATH="/go/bin:$PATH"
 
-COPY .env /app/.env
+# COPY .env /app/.env
 
 EXPOSE 8080
 
