@@ -1,6 +1,7 @@
 package mailer
 
 import (
+	"log"
 	"sync"
 	"time"
 )
@@ -70,15 +71,21 @@ func (m *InMemoryMailer) Enqueue(job MailJob) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Add logging here
+	log.Printf("Attempting to enqueue mail job for %s", job.Email)
+
 	if !m.running {
+		log.Printf("ERROR: Mail queue is not running")
 		return ErrQueueNotRunning
 	}
 
 	// Non-blocking send to channel with timeout
 	select {
 	case m.queue <- job:
+		log.Printf("Successfully enqueued mail job for %s", job.Email)
 		return nil
 	case <-time.After(100 * time.Millisecond):
+		log.Printf("ERROR: Mail queue is full")
 		return ErrQueueFull
 	}
 }
@@ -119,8 +126,10 @@ func (m *InMemoryMailer) Stop() {
 // worker processes mail jobs from the queue
 func (m *InMemoryMailer) worker(id int) {
 	defer m.wg.Done()
+	log.Printf("Mail worker %d started", id)
 
 	for job := range m.queue {
+		log.Printf("Worker %d processing mail for %s", id, job.Email)
 		startTime := time.Now()
 
 		// Use the base mailer to actually send the email
@@ -133,17 +142,18 @@ func (m *InMemoryMailer) worker(id int) {
 			job.IsSandbox,
 		)
 
-		// Calculate processing time for monitoring
 		processingTime := time.Since(startTime)
 		m.mu.Lock()
 		m.processingTime = processingTime
 		m.mu.Unlock()
 
-		// Could add retry logic here if needed
 		if err != nil {
-			// Log error but continue processing
-			// You might want to add a proper logger here
+			log.Printf("ERROR: Worker %d failed to send mail to %s: %v", id, job.Email, err)
 			continue
 		}
+
+		log.Printf("Worker %d successfully sent mail to %s in %v", id, job.Email, processingTime)
 	}
+
+	log.Printf("Mail worker %d stopped", id)
 }

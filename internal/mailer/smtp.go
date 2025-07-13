@@ -40,6 +40,8 @@ func NewSendSMTP(
 }
 
 func (s *SmtpMailer) Send(templateFile, username, email, subject string, data any, isSandBox bool) error {
+	log.Printf("Sending email to %s with template %s", email, templateFile)
+
 	// Construct the full template path
 	templatePath := filepath.Join("templates", templateFile)
 
@@ -91,11 +93,12 @@ func (s *SmtpMailer) Send(templateFile, username, email, subject string, data an
 		return nil
 	}
 
-	// Authentication
-	auth := smtp.PlainAuth("", s.mailUsername, s.mailPassword, s.mailHost)
-
 	// Server address
 	addr := fmt.Sprintf("%s:%s", s.mailHost, s.mailPort)
+	log.Printf("Connecting to SMTP server at %s", addr)
+
+	// Authentication
+	auth := smtp.PlainAuth("", s.mailUsername, s.mailPassword, s.mailHost)
 
 	// Send the email
 	if err := smtp.SendMail(
@@ -105,8 +108,11 @@ func (s *SmtpMailer) Send(templateFile, username, email, subject string, data an
 		[]string{email},
 		message.Bytes(),
 	); err != nil {
+		log.Printf("SMTP send failed: %v", err)
+		log.Printf("SMTP config - Host: %s, Port: %s, Username: %s", s.mailHost, s.mailPort, s.mailUsername)
 		return fmt.Errorf("failed to send email: %w", err)
 	}
 
+	log.Printf("Email sent successfully to %s", email)
 	return nil
 }
