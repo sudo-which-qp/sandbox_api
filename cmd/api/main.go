@@ -103,8 +103,19 @@ func main() {
 	}
 
 	// Logger
-	logger := zap.Must(zap.NewProduction()).Sugar()
-	defer logger.Sync()
+	//logger := zap.Must(zap.NewProduction()).Sugar()
+	//defer logger.Sync()
+
+	cfgZap := zap.NewProductionConfig()
+	cfgZap.OutputPaths = []string{"stdout"}
+	cfgZap.ErrorOutputPaths = []string{"stdout"}
+
+	loggerZap, err := cfgZap.Build()
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	logger := loggerZap.Sugar()
+	defer loggerZap.Sync()
 
 	// connect to the database
 	db, err := db.New(
