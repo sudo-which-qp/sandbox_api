@@ -30,7 +30,7 @@ import (
 const version = "0.0.1"
 
 func main() {
-	err := godotenv.Load("/app/.env")
+	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
