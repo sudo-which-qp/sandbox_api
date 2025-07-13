@@ -108,7 +108,9 @@ func main() {
 
 	cfgZap := zap.NewProductionConfig()
 	cfgZap.OutputPaths = []string{"stdout"}
-	cfgZap.ErrorOutputPaths = []string{"stdout"}
+	cfgZap.ErrorOutputPaths = []string{"stderr"}
+	cfgZap.Encoding = "console"
+	cfgZap.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 
 	loggerZap, err := cfgZap.Build()
 	if err != nil {
@@ -116,6 +118,10 @@ func main() {
 	}
 	logger := loggerZap.Sugar()
 	defer loggerZap.Sync()
+
+	// Test log immediately
+	logger.Info("Logger initialized successfully")
+	fmt.Println("Direct stdout test")
 
 	// connect to the database
 	db, err := db.New(
