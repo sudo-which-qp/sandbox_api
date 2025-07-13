@@ -1,27 +1,28 @@
 package env
 
 import (
+	"log"
 	"os"
 	"strconv"
 )
 
 func GetString(key, fallback string) string {
-	value := os.Getenv(key)
+	value, ok := os.LookupEnv(key)
 
-	//if !ok {
-	//	log.Printf("%s not found, defaulting to %s", key, fallback)
-	//	return fallback
-	//}
+	if !ok {
+		log.Printf("%s not found, defaulting to %s", key, fallback)
+		return fallback
+	}
 
 	return value
 }
 
 func GetInt(key string, fallback int) int {
-	value := os.Getenv(key)
+	value, ok := os.LookupEnv(key)
 
-	//if !ok {
-	//	return fallback
-	//}
+	if !ok {
+		return fallback
+	}
 
 	valueAsInt, err := strconv.Atoi(value)
 
