@@ -100,8 +100,18 @@ type dbConfig struct {
 }
 
 type mailConfig struct {
-	smtpMail smtpMailConfig
-	exp      time.Duration
+	mailerType  string
+	httpMail    httpMailConfig
+	smtpMail    smtpMailConfig
+	workerCount int
+	queueSize   int
+	exp         time.Duration
+}
+
+type httpMailConfig struct {
+	apiKey          string
+	mailFromAddress string
+	mailFromName    string
 }
 
 type smtpMailConfig struct {

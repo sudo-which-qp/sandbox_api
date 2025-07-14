@@ -146,9 +146,8 @@ func (s *SmtpMailer) sendMailWithTLS(addr, to string, message []byte) error {
 	if ok, _ := client.Extension("STARTTLS"); ok {
 		// Configure TLS
 		tlsConfig := &tls.Config{
-			ServerName:         s.mailHost,
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true,
+			ServerName: s.mailHost,
+			MinVersion: tls.VersionTLS12,
 		}
 
 		// Start TLS

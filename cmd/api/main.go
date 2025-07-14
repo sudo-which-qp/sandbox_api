@@ -64,6 +64,16 @@ func main() {
 		},
 		env: env.GetString("ENV", "development"),
 		mail: mailConfig{
+			mailerType: env.GetString("MAILER_TYPE", "smtp"),
+
+			// HTTP mailer config (Plunk)
+			httpMail: httpMailConfig{
+				apiKey:          env.GetString("PLUNK_API_KEY", ""),
+				mailFromAddress: env.GetString("MAIL_FROM_ADDRESS", "demo@godsend.dev"),
+				mailFromName:    env.GetString("MAIL_FROM_NAME", "Test"),
+			},
+
+			// SMTP mailer config (keep existing for backward compatibility)
 			smtpMail: smtpMailConfig{
 				mailHost:        env.GetString("MAIL_HOST", "smtp.useplunk.com"),
 				mailPort:        env.GetString("MAIL_PORT", "587"),
@@ -71,8 +81,13 @@ func main() {
 				mailPassword:    env.GetString("MAIL_PASSWORD", "-"),
 				mailEncryption:  env.GetString("MAIL_ENCRYPTION", "tls"),
 				mailFromAddress: env.GetString("MAIL_FROM_ADDRESS", "demo@godsend.dev"),
-				mailFromName:    env.GetString("MAIL_FROM_NAME", "Social Blog"),
+				mailFromName:    env.GetString("MAIL_FROM_NAME", "Test"),
 			},
+
+			// Queue settings
+			workerCount: env.GetInt("MAIL_WORKER_COUNT", 3),
+			queueSize:   env.GetInt("MAIL_QUEUE_SIZE", 100),
+
 			exp: time.Hour * 24 * 3, // user have 3 days to accept invitation
 		},
 		auth: authConfig{
@@ -117,7 +132,7 @@ func main() {
 	logger.Info("Logger initialized successfully")
 
 	// connect to the database
-	db, err := db.New(
+	myDB, err := db.New(
 		cfg.db.addr,
 		cfg.db.user,
 		cfg.db.password,
@@ -126,13 +141,11 @@ func main() {
 		cfg.db.maxIdleConns,
 		cfg.db.maxIdleTime,
 	)
-
 	if err != nil {
 		logger.Panic(err)
 	}
-
 	// defer closing the database
-	defer db.Close()
+	defer myDB.Close()
 	logger.Info("connected to database")
 
 	// Cache instance
@@ -169,7 +182,7 @@ func main() {
 		cfg.rateLimiter.TimeFrame,
 	)
 
-	if err := handleMigrations(db); err != nil {
+	if err := handleMigrations(myDB); err != nil {
 		logger.Fatal(err)
 	}
 
@@ -178,26 +191,68 @@ func main() {
 		return
 	}
 
-	store := store.NewStorage(db)
+	dbStore := store.NewStorage(myDB)
 	rdb := cache.NewRedisStorage(redisDB)
 
-	// Mailer config
-	smtpMailer := mailer.NewSendSMTP(
-		cfg.mail.smtpMail.mailHost,
-		cfg.mail.smtpMail.mailPort,
-		cfg.mail.smtpMail.mailUsername,
-		cfg.mail.smtpMail.mailPassword,
-		cfg.mail.smtpMail.mailEncryption,
-		cfg.mail.smtpMail.mailFromAddress,
-		cfg.mail.smtpMail.mailFromName,
-	)
-	// Create in-memory mailer with 3 workers and a queue size of 100
-	inMemoryMailer := mailer.NewInMemoryMailer(smtpMailer, 3, 100)
-	// Start the mail processing workers
-	inMemoryMailer.Start()
-	// Make sure to stop gracefully at shutdown
-	defer inMemoryMailer.Stop()
-	// stops here
+	var mailClient mailer.Client
+
+	switch cfg.mail.mailerType {
+	case "http":
+		logger.Info("Initializing HTTP mailer with Plunk API")
+
+		// Create HTTP mailer
+		httpMailer := mailer.NewHttpMailer(
+			cfg.mail.httpMail.apiKey,
+			cfg.mail.httpMail.mailFromAddress,
+			cfg.mail.httpMail.mailFromName,
+		)
+
+		// Wrap with in-memory queue
+		inMemoryHTTPMailer := mailer.NewHttpInMemoryMailer(
+			httpMailer,
+			cfg.mail.workerCount,
+			cfg.mail.queueSize,
+		)
+
+		// Start the mail processing workers
+		inMemoryHTTPMailer.Start()
+		// Make sure to stop gracefully at shutdown
+		defer inMemoryHTTPMailer.Stop()
+
+		mailClient = inMemoryHTTPMailer
+		//logger.Info("HTTP mailer initialized with %s workers and queue size of %s", cfg.mail.workerCount, cfg.mail.queueSize)
+		logger.Info("HTTP mailer initialized")
+	case "smtp":
+		logger.Info("Initializing SMTP mailer")
+
+		// Create SMTP mailer (your existing code)
+		smtpMailer := mailer.NewSendSMTP(
+			cfg.mail.smtpMail.mailHost,
+			cfg.mail.smtpMail.mailPort,
+			cfg.mail.smtpMail.mailUsername,
+			cfg.mail.smtpMail.mailPassword,
+			cfg.mail.smtpMail.mailEncryption,
+			cfg.mail.smtpMail.mailFromAddress,
+			cfg.mail.smtpMail.mailFromName,
+		)
+
+		// Create in-memory mailer with queue
+		inMemoryMailer := mailer.NewInMemoryMailer(
+			smtpMailer,
+			cfg.mail.workerCount,
+			cfg.mail.queueSize,
+		)
+
+		// Start the mail processing workers
+		inMemoryMailer.Start()
+		// Make sure to stop gracefully at shutdown
+		defer inMemoryMailer.Stop()
+
+		mailClient = inMemoryMailer
+		logger.Info("SMTP mailer initialized with %d workers and queue size of %d", cfg.mail.workerCount, cfg.mail.queueSize)
+	default:
+		logger.Fatal("Invalid mailer type: %s. Use 'smtp' or 'http'", cfg.mail.mailerType)
+	}
 
 	jwtAuthenticator := auth.NewJWTAuthenticator(
 		cfg.auth.token.secret,
@@ -227,10 +282,10 @@ func main() {
 
 	app := &application{
 		config:        cfg,
-		store:         store,
+		store:         dbStore,
 		cacheStorage:  rdb,
 		logger:        logger,
-		mailer:        inMemoryMailer,
+		mailer:        mailClient,
 		authenticator: jwtAuthenticator,
 		rateLimiter:   rateLimiter,
 		scheduler:     scheduler,
