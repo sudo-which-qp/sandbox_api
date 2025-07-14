@@ -299,8 +299,8 @@ func (app *application) resetPasswordHandler(writer http.ResponseWriter, request
 	user, err := app.store.Users.GetByEmail(request.Context(), payload.Email, false)
 
 	if err != nil {
-		switch err {
-		case store.ErrNotFound:
+		switch {
+		case errors.Is(err, store.ErrNotFound):
 			app.unauthorizedErrorResponse(writer, request, err)
 		default:
 			app.internalServerError(writer, request, err)
@@ -337,7 +337,7 @@ func (app *application) resetPasswordHandler(writer http.ResponseWriter, request
 		return
 	}
 
-	if err := writeJSON(writer, http.StatusOK, "You have successfully reset your", nil); err != nil {
+	if err := writeJSON(writer, http.StatusOK, "You have successfully reset your password", nil); err != nil {
 		app.internalServerError(writer, request, err)
 		return
 	}

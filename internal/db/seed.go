@@ -50,8 +50,11 @@ func generateUsers(num int64) []models.User {
 			panic(err)
 		}
 		users[i] = models.User{
-			Username: fake.UserName(),
-			Email:    fake.EmailAddress(),
+			FirstName: fake.FirstName(),
+			LastName:  fake.LastName(),
+			Username:  fake.UserName(),
+			Email:     fake.EmailAddress(),
+			IsActive:  true,
 			Role: models.Role{
 				Name: "user",
 			},

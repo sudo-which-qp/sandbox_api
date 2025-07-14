@@ -92,6 +92,8 @@ func (storage *UserStore) GetByID(ctx context.Context, id int64) (*models.User, 
 	query := `
 		SELECT 
 			users.id, 
+			users.first_name, 
+			users.last_name,
 			users.username, 
 			users.email, 
 			users.is_active, 
@@ -104,7 +106,7 @@ func (storage *UserStore) GetByID(ctx context.Context, id int64) (*models.User, 
 			roles.description AS role_description
 		FROM users
 		JOIN roles ON users.role_id = roles.id 
-		WHERE users.id = ? AND users.is_active = true`
+		WHERE users.id = ?`
 
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()
@@ -114,6 +116,8 @@ func (storage *UserStore) GetByID(ctx context.Context, id int64) (*models.User, 
 	user := &models.User{}
 	err := row.Scan(
 		&user.ID,
+		&user.FirstName,
+		&user.LastName,
 		&user.Username,
 		&user.Email,
 		&user.IsActive,
@@ -134,10 +138,14 @@ func (storage *UserStore) GetByID(ctx context.Context, id int64) (*models.User, 
 		}
 	}
 
+	if !user.IsActive {
+		return nil, ErrAccountNotVerified
+	}
+
 	return user, nil
 }
 
-func (storage *UserStore) GetByEmail(ctx context.Context, email string, isLogin bool) (*models.User, error) {
+func (storage *UserStore) GetByEmail(ctx context.Context, email string, isAuth bool) (*models.User, error) {
 	normalizedEmail := normalizeEmail(email)
 
 	query := `
@@ -194,11 +202,17 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string, isLogin 
 		user.Role.Description = roleDescription.String
 	}
 
-	if !user.IsActive && isLogin == true {
+	if !user.IsActive && isAuth == true {
 		return nil, ErrAccountNotVerified
 	}
 
 	return user, nil
+}
+
+func (storage *UserStore) UpdateUserProfile(ctx context.Context, user *models.User) error {
+	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
+		return storage.updateQuery(ctx, tx, user)
+	})
 }
 
 func (storage *UserStore) VerifyEmail(ctx context.Context, userId int64) error {
@@ -224,16 +238,28 @@ func (storage *UserStore) Delete(ctx context.Context, userID int64) error {
 		if err := storage.deleteQuery(ctx, tx, userID); err != nil {
 			return err
 		}
-
-		if err := storage.deleteUserInvitationsQuery(ctx, tx, userID); err != nil {
-			return err
-		}
-
 		return nil
 	})
 }
 
 // ================== Private methods ======================//
+func (storage *UserStore) updateQuery(ctx context.Context, tx *sql.Tx, user *models.User) error {
+	query := `UPDATE users
+			  SET first_name = ?, last_name = ?
+			  WHERE id = ?`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	_, err := tx.ExecContext(ctx, query, user.FirstName, user.LastName, user.ID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (storage *UserStore) resetPasswordQuery(ctx context.Context, tx *sql.Tx, user *models.User) error {
 	query := `UPDATE users
 			  SET password = ?, otp_code = ?
@@ -277,38 +303,6 @@ func (storage *UserStore) updateOTPQuery(ctx context.Context, tx *sql.Tx, user *
 	defer cancel()
 
 	_, err := tx.ExecContext(ctx, query, otpCode, otpExp, user.ID)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (storage *UserStore) updateQuery(ctx context.Context, tx *sql.Tx, user *models.User) error {
-	query := `UPDATE users
-			  SET username = ?, email = ?, is_active = ?
-              WHERE id = ?`
-
-	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
-	defer cancel()
-
-	_, err := tx.ExecContext(ctx, query, user.Username, user.Email, user.IsActive, user.ID)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (storage *UserStore) deleteUserInvitationsQuery(ctx context.Context, tx *sql.Tx, userID int64) error {
-	query := `DELETE FROM user_invitations WHERE user_id = ?`
-
-	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
-	defer cancel()
-
-	_, err := tx.ExecContext(ctx, query, userID)
 
 	if err != nil {
 		return err

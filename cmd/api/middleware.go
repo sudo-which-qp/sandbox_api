@@ -17,7 +17,7 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 		// read the auth header
 		authHeader := request.Header.Get("Authorization")
 		if authHeader == "" {
-			app.unauthorizedErrorResponse(writer, request, fmt.Errorf("missing auth header"))
+			app.unauthorizedErrorResponse(writer, request, fmt.Errorf("invalid auth header"))
 			return
 		}
 
@@ -52,7 +52,7 @@ func (app *application) AuthTokenMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx = context.WithValue(ctx, userCtx, user)
+		ctx = context.WithValue(ctx, userAuthCtx, user)
 
 		next.ServeHTTP(writer, request.WithContext(ctx))
 	})
@@ -107,7 +107,7 @@ func (app *application) checkRolePrecedence(ctx context.Context, user *models.Us
 }
 
 func (app *application) getUser(ctx context.Context, userID int64) (*models.User, error) {
-	if !app.config.redisCfg.enabled {
+	if app.config.redisCfg.enabled {
 		return app.store.Users.GetByID(ctx, userID)
 	}
 

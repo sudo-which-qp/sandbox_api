@@ -15,10 +15,15 @@ func (app *application) registerRoutes(router *chi.Mux) {
 		route.Post("/bulk-emails", app.sendBulkEmails)
 
 		// users
-		route.Route("/users", func(route chi.Router) {
+		route.Route("/user", func(route chi.Router) {
 			route.Use(app.AuthTokenMiddleware)
 			route.Get("/profile", app.getUserHandler)
-			route.Get("/profile", app.getUserHandler)
+			route.Post("/update-profile", app.updateUserProfileHandler)
+
+			route.Route("/{userID}", func(route chi.Router) {
+				route.Use(app.usersContextMiddleware)
+				route.Get("/fetch-user", app.getUserByIDHandler)
+			})
 		})
 
 		// Public routes
