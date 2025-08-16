@@ -191,11 +191,12 @@ func main() {
 		return
 	}
 
+	// Store
 	dbStore := store.NewStorage(myDB)
 	rdb := cache.NewRedisStorage(redisDB)
 
+	// Mailer
 	var mailClient mailer.Client
-
 	switch cfg.mail.mailerType {
 	case "http":
 		logger.Info("Initializing HTTP mailer with Plunk API")
