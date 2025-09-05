@@ -1,23 +1,23 @@
-# Use Debian Bookworm base image
-FROM golang:1.25.0-bookworm
+FROM golang:1.25.0-alpine
 
-# Install dependencies using apt (not apk)
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     make \
     gcc \
+    musl-dev \
     git \
     mysql-client \
-    default-libmysqlclient-dev \
+    mariadb-connector-c-dev \
     ca-certificates \
-    tzdata \
-    && rm -rf /var/lib/apt/lists/*
+    tzdata
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
+
+# Create necessary directories
+RUN mkdir -p cmd/migrate/migrations
 
 # Build the application
 RUN go build -o main ./cmd/api/*.go
@@ -25,9 +25,12 @@ RUN go build -o main ./cmd/api/*.go
 # Install migrate tool
 RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-# Make binary executable
 RUN chmod +x ./main
 
 EXPOSE 8080
+
+# Add a health check to help debugging
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
 
 CMD ["./main"]
