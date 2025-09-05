@@ -10,7 +10,7 @@ func (app *application) healthCheckHandler(writer http.ResponseWriter, request *
 		"versions": version,
 	}
 
-	if err := writeJSON(writer, http.StatusOK, "API is healthy running in "+app.config.env+" mode", data); err != nil {
+	if err := writeJSON(writer, http.StatusOK, "API is healthy running in "+app.config.env+" mode from Raspberry Pi Server", data); err != nil {
 		app.internalServerError(writer, request, err)
 	}
 }
