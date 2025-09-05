@@ -1,3 +1,12 @@
+# Determine if we're in a production environment
+ifeq ($(PROD),true)
+    # Production: use the pre-built binary
+    APP_CMD=./main
+else
+    # Development: build a temporary binary and run it
+    APP_CMD=go build -o /tmp/dev-main ./cmd/app/ && /tmp/dev-main
+endif
+
 test:
 	@go test -v ./...
 
@@ -7,16 +16,20 @@ migration-create:
 
 .PHONY: migrate-up
 migrate-up:
-	@go run cmd/api/*.go up
+	@$(APP_CMD) up
 
 .PHONY: migrate-down
 migrate-down:
-	@go run cmd/api/*.go down
+	@$(APP_CMD) down
 
 .PHONY: migrate-force
 migrate-force:
-	@go run cmd/api/*.go $(version) force
+	@$(APP_CMD) $(version) force
 
 .PHONY: seed
 seed:
-	@go run cmd/migrate/seed/main.go
+	@$(APP_CMD) seed
+
+.PHONY: clean
+clean:
+	@rm -f /tmp/dev-main
