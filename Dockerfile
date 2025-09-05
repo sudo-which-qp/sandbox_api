@@ -1,4 +1,4 @@
-# STAGE 1: BUILDER (same as above)
+# STAGE 1: BUILDER
 FROM golang:1.25.0-alpine AS builder
 
 RUN apk add --no-cache \
@@ -31,12 +31,13 @@ USER appuser
 
 WORKDIR /app
 
-# Copy binaries and project files (for Makefile)
+# Copy only the binaries and necessary files
 COPY --from=builder --chown=appuser:appuser /app/main .
 COPY --from=builder --chown=appuser:appuser /app/migrate /usr/local/bin/
-COPY --chown=appuser:appuser . .
-COPY --chown=appuser:appuser .env .
+# Copy the Makefile if you need to run migrations on start, but NOT .env
+COPY --chown=appuser:appuser Makefile .
 
 EXPOSE 8080
 
+# The command to run the application
 CMD ["./main"]
