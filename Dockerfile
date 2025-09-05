@@ -1,5 +1,7 @@
+# Dokploy will automatically pull the ARM64 version on your Pi
 FROM golang:1.25.0-alpine
 
+# Install ALL dependencies needed for building AND running
 RUN apk add --no-cache \
     make \
     gcc \
@@ -12,25 +14,23 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
+# Copy dependency files first for better caching
 COPY go.mod go.sum ./
 RUN go mod download
+
+# Copy the entire application source code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p cmd/migrate/migrations
-
-# Build the application
+# Build the application binary (Dokploy expects this)
 RUN go build -o main ./cmd/api/*.go
 
-# Install migrate tool
+# Install migrate tool for your make commands
 RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
+# Make sure the binary is executable
 RUN chmod +x ./main
 
 EXPOSE 8080
 
-# Add a health check to help debugging
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
-
+# Start the application
 CMD ["./main"]
