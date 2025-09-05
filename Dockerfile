@@ -1,4 +1,4 @@
-# STAGE 1: BUILDER (same as above)
+# STAGE 1: BUILDER
 FROM golang:1.25.0-alpine AS builder
 
 RUN apk add --no-cache \
@@ -14,13 +14,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o main ./cmd/app/*.go
-# Build migrate tool statically too
 RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -tags 'mysql' -o migrate github.com/golang-migrate/migrate/v4/cmd/migrate
 
-# STAGE 2: RUNNER - Minimal image with just make + dependencies
+# STAGE 2: RUNNER
 FROM alpine:3.18
 
-# Install make + minimal runtime deps
 RUN apk add --no-cache \
     make \
     ca-certificates \
@@ -31,12 +29,13 @@ USER appuser
 
 WORKDIR /app
 
-# Copy binaries and project files (for Makefile)
+# Copy ONLY the necessary files
 COPY --from=builder --chown=appuser:appuser /app/main .
 COPY --from=builder --chown=appuser:appuser /app/migrate /usr/local/bin/
-COPY --chown=appuser:appuser . .
-COPY --chown=appuser:appuser .env .
+# Copy the Makefile if you need it for migrations, but NOT .env
+COPY --chown=appuser:appuser Makefile .
 
 EXPOSE 8080
 
+CMD ["./main"]
 CMD ["./main"]
