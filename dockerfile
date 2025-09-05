@@ -1,6 +1,17 @@
-FROM golang:1.25-alpine AS build
+FROM golang:1.25-alpine
 
-RUN apk add --no-cache bash git build-base make ca-certificates tzdata
+RUN apk add --no-cache \
+    make \
+    bash \
+    gcc \
+    musl-dev \
+    tzdata \
+    curl \
+    git \
+    sqlite \
+    mysql-client \
+    mariadb-connector-c-dev \
+    ca-certificates
 
 WORKDIR /app
 
@@ -9,22 +20,12 @@ RUN go mod download
 
 COPY . .
 
-# Build a static ARM64 binary for Raspberry Pi 5
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=arm64
-RUN go build -o /out/app ./cmd/api
+RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+ENV PATH="/go/bin:${PATH}"
 
-FROM alpine:3.20
-
-RUN apk add --no-cache make ca-certificates tzdata && \
-    adduser -D -H -s /sbin/nologin appuser
-
-WORKDIR /app
-
-COPY --from=build /out/app /app/app
-
-# Non-root for safety
-USER appuser
+ENV CGO_ENABLED=1 GOOS=linux GOARCH=arm64
+RUN go build -o bin/main ./cmd/api
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/app"]
+ENTRYPOINT ["/app/bin/main"]
