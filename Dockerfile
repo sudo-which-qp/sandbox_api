@@ -1,36 +1,42 @@
-# Dokploy will automatically pull the ARM64 version on your Pi
-FROM golang:1.25.0-alpine
+# STAGE 1: BUILDER (same as above)
+FROM golang:1.25.0-alpine AS builder
 
-# Install ALL dependencies needed for building AND running
 RUN apk add --no-cache \
     make \
     gcc \
     musl-dev \
     git \
     mysql-client \
-    mariadb-connector-c-dev \
+    mariadb-connector-c-dev
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o main ./cmd/api/*.go
+# Build migrate tool statically too
+RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -tags 'mysql' -o migrate github.com/golang-migrate/migrate/v4/cmd/migrate
+
+# STAGE 2: RUNNER - Minimal image with just make + dependencies
+FROM alpine:3.18
+
+# Install make + minimal runtime deps
+RUN apk add --no-cache \
+    make \
     ca-certificates \
     tzdata
 
+RUN adduser -D -g '' appuser
+USER appuser
+
 WORKDIR /app
 
-# Copy dependency files first for better caching
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy the entire application source code
-COPY . .
-
-# Build the application binary (Dokploy expects this)
-RUN go build -o main ./cmd/api/*.go
-
-# Install migrate tool for your make commands
-RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-
-# Make sure the binary is executable
-RUN chmod +x ./main
+# Copy binaries and project files (for Makefile)
+COPY --from=builder --chown=appuser:appuser /app/main .
+COPY --from=builder --chown=appuser:appuser /app/migrate /usr/local/bin/
+COPY --chown=appuser:appuser . .
+COPY --chown=appuser:appuser .env .
 
 EXPOSE 8080
 
-# Start the application
 CMD ["./main"]
