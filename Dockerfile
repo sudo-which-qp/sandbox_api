@@ -13,7 +13,11 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o main ./cmd/app/*.go
+
+# FIXED: Changed from ./cmd/app/*.go to ./cmd/api/*.go
+RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o main ./cmd/api/*.go
+
+# Build migrate tool statically too
 RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -tags 'mysql' -o migrate github.com/golang-migrate/migrate/v4/cmd/migrate
 
 # STAGE 2: RUNNER
@@ -37,5 +41,4 @@ COPY --chown=appuser:appuser Makefile .
 
 EXPOSE 8080
 
-CMD ["./main"]
 CMD ["./main"]

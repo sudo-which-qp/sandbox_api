@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       packages: write
@@ -14,10 +15,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      # --- REMOVE THIS STEP ENTIRELY ---
-      # - name: Recreate .env file from GitHub Secret
-      #   run: echo "${{ secrets.DOTENV_FILE }}" > .env
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -39,11 +36,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/sudo-which-qp/evently-staging-api:latest
-            ghcr.io/sudo-which-qp/evently-staging-api:${{ github.sha }}
+            ghcr.io/sudo-which-qp/sandbox-api:latest
+            ghcr.io/sudo-which-qp/sandbox-api:${{ github.sha }}
 
       - name: Trigger redeploy webhook
         if: success()
         run: |
-          curl -X POST "${{ secrets.REDEPLOY_WEBHOOK }}"
           curl -X POST "${{ secrets.REDEPLOY_WEBHOOK }}"
