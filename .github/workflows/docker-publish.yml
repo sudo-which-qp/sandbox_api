@@ -2,7 +2,7 @@ name: Publish Docker image to GHCR
 
 on:
   push:
-    branches: [staging]
+    branches: [master]
 
 jobs:
   build:
