@@ -14,10 +14,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-# FIXED: Changed from ./cmd/app/*.go to ./cmd/api/*.go
-RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o main ./cmd/api/*.go
-
-# Build migrate tool statically too
+RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o main ./cmd/app/*.go
 RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -tags 'mysql' -o migrate github.com/golang-migrate/migrate/v4/cmd/migrate
 
 # STAGE 2: RUNNER
@@ -33,11 +30,12 @@ USER appuser
 
 WORKDIR /app
 
-# Copy ONLY the necessary files
+# Copy the necessary files INCLUDING .env (temporary fix)
 COPY --from=builder --chown=appuser:appuser /app/main .
 COPY --from=builder --chown=appuser:appuser /app/migrate /usr/local/bin/
-# Copy the Makefile if you need it for migrations, but NOT .env
 COPY --chown=appuser:appuser Makefile .
+# ADD THIS LINE BACK
+COPY --chown=appuser:appuser .env .
 
 EXPOSE 8080
 

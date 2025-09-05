@@ -7,7 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       packages: write
@@ -15,6 +14,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      # ADD THIS BACK FOR NOW
+      - name: Recreate .env file from GitHub Secret
+        run: echo "${{ secrets.DOTENV_FILE }}" > .env
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -42,4 +45,5 @@ jobs:
       - name: Trigger redeploy webhook
         if: success()
         run: |
+          curl -X POST "${{ secrets.REDEPLOY_WEBHOOK }}"
           curl -X POST "${{ secrets.REDEPLOY_WEBHOOK }}"
