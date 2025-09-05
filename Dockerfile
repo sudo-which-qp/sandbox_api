@@ -1,5 +1,5 @@
-# STAGE 1: BUILDER
-FROM --platform=$BUILDPLATFORM golang:1.25.0-alpine AS builder
+# Build stage
+FROM golang:1.25.0-alpine AS builder
 
 RUN apk add --no-cache \
     make \
@@ -13,27 +13,29 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+RUN go build -o main ./cmd/api/*.go
+RUN go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-# Build for the target platform
-RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o main ./cmd/api/*.go
-RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -tags 'mysql' -o migrate github.com/golang-migrate/migrate/v4/cmd/migrate
+# Runtime stage (but keep it simple)
+FROM golang:1.25.0-alpine
 
-# STAGE 2: RUNNER
-FROM alpine:3.18
+# Copy everything from builder including Go tools
+COPY --from=builder /go/bin/migrate /go/bin/migrate
+COPY --from=builder /app/main /app/main
+COPY --from=builder /app/.env /app/.env
 
+WORKDIR /app
+
+# Install runtime dependencies only
 RUN apk add --no-cache \
     make \
+    mysql-client \
+    mariadb-connector-c \
     ca-certificates \
     tzdata
 
-RUN adduser -D -g '' appuser
-USER appuser
-
-WORKDIR /app
-COPY --from=builder --chown=appuser:appuser /app/main .
-COPY --from=builder --chown=appuser:appuser /app/migrate /usr/local/bin/
-COPY --chown=appuser:appuser . .
-COPY --chown=appuser:appuser .env .
+RUN chmod +x ./main
 
 EXPOSE 8080
+
 CMD ["./main"]
