@@ -36,8 +36,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/sudo-which-qp/evently-staging-api:latest
-            ghcr.io/sudo-which-qp/evently-staging-api:${{ github.sha }}
+            ghcr.io/sudo-which-qp/sandbox-api:latest
+            ghcr.io/sudo-which-qp/sandbox-api:${{ github.sha }}
 
       - name: Trigger redeploy webhook
         if: success()
