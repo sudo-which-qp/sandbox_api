@@ -41,6 +41,8 @@ jobs:
           tags: |
             ghcr.io/sudo-which-qp/sandbox-api:latest
             ghcr.io/sudo-which-qp/sandbox-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Trigger redeploy webhook
         if: success()
