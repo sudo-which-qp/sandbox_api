@@ -113,10 +113,10 @@ curl -X GET http://localhost:8080/v1/user/profile \
 
 1. Define the model in `internal/models/`
 2. Create database repository `internal/store/`
-3. Add HTTP handlers in `cmd/api/`
+3. Add HTTP handlers in `cmd/app/`
 4. Register routes in the main server file
 
-### Database Migrations
+### Database Migrations on Dev Environment in Docker
 
 ```bash
 # Create new migration
@@ -127,6 +127,19 @@ make migrate-up
 
 # Rollback migrations
 make migrate-down
+```
+
+### Database Migrations on Live Environment in Docker
+
+```bash
+# Create new migration
+PROD=true make migration-create user_table
+
+# Run migrations
+PROD=true make migrate-up
+
+# Rollback migrations
+PROD=true make migrate-down
 ```
 
 ## Contributing
