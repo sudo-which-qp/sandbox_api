@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
+
 	"github.com/go-sql-driver/mysql"
 	"godsendjoseph.dev/sandbox-api/internal/models"
-	"strings"
 )
 
 type UserStore struct {
@@ -209,10 +210,21 @@ func (storage *UserStore) GetByEmail(ctx context.Context, email string, isAuth b
 	return user, nil
 }
 
-func (storage *UserStore) UpdateUserProfile(ctx context.Context, user *models.User) error {
-	return withTx(ctx, storage.db, func(tx *sql.Tx) error {
-		return storage.updateQuery(ctx, tx, user)
+func (storage *UserStore) UpdateUserProfile(ctx context.Context, user *models.User) (*models.User, error) {
+	var updated *models.User
+
+	err := withTx(ctx, storage.db, func(tx *sql.Tx) error {
+		updatedUser, err := storage.updateQuery(ctx, tx, user)
+		if err != nil {
+			return err
+		}
+		updated = updatedUser
+		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
 }
 
 func (storage *UserStore) VerifyEmail(ctx context.Context, userId int64) error {
@@ -243,7 +255,7 @@ func (storage *UserStore) Delete(ctx context.Context, userID int64) error {
 }
 
 // ================== Private methods ======================//
-func (storage *UserStore) updateQuery(ctx context.Context, tx *sql.Tx, user *models.User) error {
+func (storage *UserStore) updateQuery(ctx context.Context, tx *sql.Tx, user *models.User) (*models.User, error) {
 	query := `UPDATE users
 			  SET first_name = ?, last_name = ?
 			  WHERE id = ?`
@@ -254,10 +266,10 @@ func (storage *UserStore) updateQuery(ctx context.Context, tx *sql.Tx, user *mod
 	_, err := tx.ExecContext(ctx, query, user.FirstName, user.LastName, user.ID)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return user, nil
 }
 
 func (storage *UserStore) resetPasswordQuery(ctx context.Context, tx *sql.Tx, user *models.User) error {

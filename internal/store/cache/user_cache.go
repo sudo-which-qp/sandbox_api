@@ -54,3 +54,48 @@ func (storage *UserStore) Set(ctx context.Context, user *models.User) error {
 
 	return storage.rdb.SetEX(ctx, cacheKey, json, UserExpTime).Err()
 }
+
+func (storage *UserStore) Update(ctx context.Context, user *models.User) error {
+	if storage.rdb == nil {
+		return errors.New("redis client not initialized")
+	}
+
+	// Check if the key exists first
+	cacheKey := fmt.Sprintf("user-%v", user.ID)
+	exists, err := storage.rdb.Exists(ctx, cacheKey).Result()
+	if err != nil {
+		return err
+	}
+
+	if exists == 0 {
+		return errors.New("user not found in cache")
+	}
+
+	// Update is essentially the same as Set - overwrite with new data
+	json, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	return storage.rdb.SetEX(ctx, cacheKey, json, UserExpTime).Err()
+}
+
+func (storage *UserStore) Delete(ctx context.Context, userID int64) error {
+	if storage.rdb == nil {
+		return errors.New("redis client not initialized")
+	}
+
+	cacheKey := fmt.Sprintf("user-%v", userID)
+
+	result, err := storage.rdb.Del(ctx, cacheKey).Result()
+	if err != nil {
+		return err
+	}
+
+	// Optional: return an error if the key didn't exist
+	if result == 0 {
+		return errors.New("user not found in cache")
+	}
+
+	return nil
+}

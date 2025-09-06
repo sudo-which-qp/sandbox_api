@@ -107,7 +107,7 @@ func (app *application) checkRolePrecedence(ctx context.Context, user *models.Us
 }
 
 func (app *application) getUser(ctx context.Context, userID int64) (*models.User, error) {
-	if app.config.redisCfg.enabled {
+	if !app.config.redisCfg.enabled {
 		return app.store.Users.GetByID(ctx, userID)
 	}
 

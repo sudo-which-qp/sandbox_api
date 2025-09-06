@@ -12,6 +12,8 @@ type Storage struct {
 	Users interface {
 		Get(context.Context, int64) (*models.User, error)
 		Set(context.Context, *models.User) error
+		Update(context.Context, *models.User) error
+		Delete(context.Context, int64) error
 	}
 }
 

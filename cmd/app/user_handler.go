@@ -47,12 +47,31 @@ func (app *application) updateUserProfileHandler(writer http.ResponseWriter, req
 
 	user := getUserFromCtx(request)
 
-	user.FirstName = payload.FirstName
-	user.LastName = payload.LastName
+	if payload.FirstName == "" {
+		payload.FirstName = user.FirstName
+	}
+	if payload.LastName == "" {
+		payload.LastName = user.LastName
+	}
 
-	if err := app.store.Users.UpdateUserProfile(ctx, user); err != nil {
+	mUser := &models.User{
+		ID:        user.ID,
+		FirstName: payload.FirstName,
+		LastName:  payload.LastName,
+	}
+
+	updatedUser, err := app.store.Users.UpdateUserProfile(ctx, mUser)
+	if err != nil {
 		app.internalServerError(writer, request, err)
 		return
+	}
+
+	if err := app.cacheStorage.Users.Delete(ctx, updatedUser.ID); err != nil {
+		app.logger.Errorf("failed to cache user: %v", err)
+	}
+
+	if err := app.cacheStorage.Users.Set(ctx, updatedUser); err != nil {
+		app.logger.Errorf("failed to cache user: %v", err)
 	}
 
 	if err := writeJSON(writer, http.StatusOK, "User updated", user); err != nil {
