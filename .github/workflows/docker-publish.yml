@@ -15,7 +15,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # ADD THIS BACK FOR NOW
       - name: Recreate .env file from GitHub Secret
         run: echo "${{ secrets.DOTENV_FILE }}" > .env
 
@@ -32,15 +31,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.ACCESS_TOKEN }}
 
-      - name: Build and push multi-arch image
+      - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.staging
-          platforms: linux/amd64,linux/arm64
+          file: ./Dockerfile.prod
           push: true
           tags: |
-            ghcr.io/sudo-which-qp/sandbox-api:latest
+            ${{ secrets.REGISTRY }}/sandbox-api:latest
             ghcr.io/sudo-which-qp/sandbox-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

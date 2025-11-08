@@ -17,6 +17,7 @@ COPY . .
 RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o main ./cmd/app/*.go
 # Build migrate tool statically too
 RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -tags 'mysql' -o migrate github.com/golang-migrate/migrate/v4/cmd/migrate
+RUN CGO_ENABLED=1 go build -ldflags='-extldflags="-static"' -o seed-bin ./cmd/migrate/seed/*.go
 
 # STAGE 2: RUNNER - Minimal image with just make + dependencies
 FROM alpine:3.18
@@ -35,6 +36,7 @@ WORKDIR /app
 # Copy binaries and project files (for Makefile)
 COPY --from=builder --chown=appuser:appuser /app/main .
 COPY --from=builder --chown=appuser:appuser /app/migrate /usr/local/bin/
+COPY --from=builder --chown=appuser:appuser /app/seed-bin .
 COPY --chown=appuser:appuser . .
 COPY --chown=appuser:appuser .env .
 
