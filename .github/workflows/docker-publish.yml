@@ -15,9 +15,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Recreate .env file from GitHub Secret
-        run: echo "${{ secrets.DOTENV_FILE }}" > .env
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -46,4 +43,8 @@ jobs:
       - name: Trigger redeploy webhook
         if: success()
         run: |
-          curl -X POST "${{ secrets.REDEPLOY_WEBHOOK }}"
+          curl -X POST "${{ secrets.APP_URL }}/api/application.redeploy" \
+          -H 'accept: application/json' \
+          -H 'Content-Type: application/json' \
+          -H "x-api-key: ${{ secrets.API_KEY }}" \
+          -d '{"applicationId": "${{ secrets.DOKPLOY_APP_ID }}", "title": "Rebuild deployment", "description": "this is a rebuild deployment from github actions"}'
