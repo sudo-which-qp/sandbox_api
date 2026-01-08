@@ -11,6 +11,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"godsendjoseph.dev/sandbox-api/internal/env"
 )
 
 // HttpMailer implements the Client interface using HTTP API calls
@@ -49,7 +51,7 @@ func NewHttpMailer(
 
 	return &HttpMailer{
 		apiKey:          apiKey,
-		apiURL:          "https://api.useplunk.com/v1/send",
+		apiURL:          env.GetString("PLUNK_API_SEND_URL", "https://next-api.useplunk.com/v1/send"),
 		mailFromAddress: mailFromAddress,
 		mailFromName:    mailFromName,
 		maxRetries:      3,
