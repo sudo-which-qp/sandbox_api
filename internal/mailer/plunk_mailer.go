@@ -2,9 +2,7 @@ package mailer
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -12,6 +10,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/imroc/req/v3"
 	"godsendjoseph.dev/sandbox-api/internal/env"
 )
 
@@ -27,20 +26,26 @@ type HttpMailer struct {
 }
 
 type PlunkRequest struct {
-	To      string `json:"to"`
-	Subject string `json:"subject"`
-	Body    string `json:"body"`
-	Name    string `json:"name"`
-	From    string `json:"from"`
+	To          interface{}  `json:"to"`
+	Subject     string       `json:"subject"`
+	Body        string       `json:"body"`
+	Name        string       `json:"name"`
+	From        string       `json:"from"`
+	Attachments []Attachment `json:"attachments,omitempty"`
 }
 
-// PlunkResponse represents the response from Plunk API
-type PlunkResponse struct {
-	Success   bool   `json:"success"`
-	Timestamp string `json:"timestamp"`
-	Emails    string `json:"emails"`
-	Message   string `json:"message"`
-	Error     string `json:"error"`
+var PlunkResponse struct {
+	Success   bool    `json:"success"`
+	Timestamp string  `json:"timestamp"`
+	Emails    []Email `json:"emails"`
+}
+
+type Email struct {
+	Contact struct {
+		ID    string `json:"id"`
+		Email string `json:"email"`
+	} `json:"contact"`
+	EmailID string `json:"email"`
 }
 
 // NewHttpMailer creates a new HTTP-based mailer using Plunk API
@@ -62,39 +67,35 @@ func NewHttpMailer(
 	}
 }
 
-// Send implements the Client interface
-func (httpMailer *HttpMailer) Send(templateFile, username, email, subject string, data any, isSandBox bool) error {
-	return httpMailer.SendWithOptions(templateFile, username, email, subject, data, SyncDelivery, isSandBox)
+func (httpMailer *HttpMailer) Send(templateFile, username, email,
+	subject string, data any, isSandBox bool, attachments []Attachment) error {
+	return httpMailer.SendWithOptions(templateFile, username, email,
+		subject, data, SyncDelivery, isSandBox, attachments)
 }
 
-func (httpMailer *HttpMailer) SendWithOptions(templateFile, username, email, subject string, data any, deliveryMode string, isSandBox bool) error {
-	// Construct the full template path
+func (httpMailer *HttpMailer) SendWithOptions(templateFile, username, email,
+	subject string, data any, deliveryMode string, isSandBox bool, attachments []Attachment) error {
 	templatePath := filepath.Join("templates", templateFile)
 
-	// Parse the template from the embedded filesystem
 	t, err := template.ParseFS(FS, templatePath)
 	if err != nil {
 		return fmt.Errorf("error parsing template from FS: %w", err)
 	}
 
-	// Render the template with data
 	var body bytes.Buffer
 	if err := t.ExecuteTemplate(&body, "body", data); err != nil {
 		return fmt.Errorf("error executing template: %w", err)
 	}
 
-	// If subject is empty, try to get it from the template
 	if subject == "" {
 		var subjectBuf bytes.Buffer
 		if err := t.ExecuteTemplate(&subjectBuf, "subject", data); err == nil {
 			subject = strings.TrimSpace(subjectBuf.String())
 		} else {
-			// Fallback subject if template doesn't have a subject block
 			subject = fmt.Sprintf("Message for %s", username)
 		}
 	}
 
-	// If in sandbox mode, just log the email
 	if isSandBox {
 		log.Printf("SANDBOX MODE: Would send email to %s with template %s", email, templateFile)
 		log.Printf("Subject: %s", subject)
@@ -102,16 +103,15 @@ func (httpMailer *HttpMailer) SendWithOptions(templateFile, username, email, sub
 		return nil
 	}
 
-	// Prepare the request payload
 	request := PlunkRequest{
-		To:      email,
-		Subject: subject,
-		Body:    body.String(),
-		Name:    httpMailer.mailFromName,
-		From:    httpMailer.mailFromAddress,
+		To:          email,
+		Subject:     subject,
+		Body:        body.String(),
+		Name:        httpMailer.mailFromName,
+		From:        httpMailer.mailFromAddress,
+		Attachments: attachments,
 	}
 
-	// Attempt to send with retries
 	var lastErr error
 	for attempt := 1; attempt <= httpMailer.maxRetries; attempt++ {
 		log.Printf("Attempt %d/%d to send email to %s via HTTP", attempt, httpMailer.maxRetries, email)
@@ -134,64 +134,25 @@ func (httpMailer *HttpMailer) SendWithOptions(templateFile, username, email, sub
 	return fmt.Errorf("failed to send email via HTTP after %d attempts: %w", httpMailer.maxRetries, lastErr)
 }
 
-// sendHTTPRequest sends the email via HTTP API
 func (httpMailer *HttpMailer) sendHTTPRequest(request PlunkRequest) error {
-	// Marshal the request to JSON
-	jsonData, err := json.Marshal(request)
-	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
-	}
+	client := req.C().SetTimeout(30 * time.Second)
 
-	// Create HTTP request
-	req, err := http.NewRequest("POST", httpMailer.apiURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("failed to create HTTP request: %w", err)
-	}
-
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+httpMailer.apiKey)
-
-	// Send the request
-	resp, err := httpMailer.httpClient.Do(req)
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Accept", "application/json").
+		SetBearerAuthToken(httpMailer.apiKey).
+		SetBody(&request).
+		SetSuccessResult(&PlunkResponse).
+		Post(httpMailer.apiURL)
 	if err != nil {
 		return fmt.Errorf("failed to send HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
 
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	// Parse the response
-	var plunkResp PlunkResponse
-	if err := json.Unmarshal(body, &plunkResp); err != nil {
-		// If we can't parse the response, but got a success status code, consider it successful
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			log.Printf("Email sent successfully but couldn't parse response: %s", string(body))
-			return nil
-		}
-		return fmt.Errorf("failed to parse response (status: %d): %w, body: %s", resp.StatusCode, err, string(body))
-	}
-
-	// Check if the request was successful
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 && plunkResp.Success {
+	if resp.IsSuccessState() && PlunkResponse.Success {
 		return nil
 	}
 
-	// Handle error response
-	errorMsg := plunkResp.Error
-	if errorMsg == "" {
-		errorMsg = plunkResp.Message
-	}
-
-	if errorMsg == "" {
-		errorMsg = fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body))
-	}
-
-	log.Printf("Plunk Response Body: %s", string(body))
-
+	errorMsg := fmt.Sprintf("HTTP %d response, success=false", resp.StatusCode)
+	log.Printf("Plunk Response Body: %s", resp.String())
 	return fmt.Errorf("API request failed: %s", errorMsg)
 }

@@ -40,7 +40,8 @@ func NewHttpInMemoryMailer(
 }
 
 // Send implements the Client interface, but uses in-memory queue
-func (m *HttpInMemoryMailer) Send(templateFile, username, email, subject string, data any, isSandBox bool) error {
+func (m *HttpInMemoryMailer) Send(templateFile, username,
+	email, subject string, data any, isSandBox bool, attachments []Attachment) error {
 	job := MailJob{
 		TemplateFile: templateFile,
 		Username:     username,
@@ -48,21 +49,23 @@ func (m *HttpInMemoryMailer) Send(templateFile, username, email, subject string,
 		Subject:      subject,
 		Data:         data,
 		IsSandbox:    isSandBox,
+		Attachments:  attachments,
 	}
 
-	// Enqueue the job instead of sending immediately
 	return m.Enqueue(job)
 }
 
 // SendWithOptions implements the extended Client interface
-func (m *HttpInMemoryMailer) SendWithOptions(templateFile, username, email, subject string, data any, deliveryMode string, isSandBox bool) error {
+func (m *HttpInMemoryMailer) SendWithOptions(templateFile, username, email,
+	subject string, data any, deliveryMode string, isSandBox bool, attachments []Attachment) error {
 	// If sync is requested, use the base mailer directly
 	if deliveryMode == SyncDelivery {
-		return m.baseMailer.Send(templateFile, username, email, subject, data, isSandBox)
+		return m.baseMailer.Send(templateFile, username, email,
+			subject, data, isSandBox, attachments)
 	}
 
 	// Otherwise use async in-memory delivery
-	return m.Send(templateFile, username, email, subject, data, isSandBox)
+	return m.Send(templateFile, username, email, subject, data, isSandBox, attachments)
 }
 
 // Enqueue adds a mail job to the queue
@@ -138,6 +141,7 @@ func (m *HttpInMemoryMailer) worker(id int) {
 			job.Subject,
 			job.Data,
 			job.IsSandbox,
+			job.Attachments,
 		)
 
 		processingTime := time.Since(startTime)
