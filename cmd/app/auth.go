@@ -435,6 +435,7 @@ func (app *application) sendOTP(user *models.User, subject string, otpCode strin
 		vars,
 		mailer.AsyncInMemory,
 		!isProdEnv,
+		nil,
 	)
 }
 

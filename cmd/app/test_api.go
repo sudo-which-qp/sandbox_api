@@ -21,6 +21,7 @@ func (app *application) sendBulkEmails(writer http.ResponseWriter, request *http
 			nil,
 			mailer.AsyncInMemory,
 			!isProdEnv,
+			nil,
 		)
 		if err != nil {
 			app.logger.Errorw("error sending welcome email", "error", err)
